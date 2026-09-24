@@ -24,12 +24,19 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-font"
+      "expo-font",
+      "expo-updates"
     ],
     "extra": {
       "eas": {
         "projectId": "59d07113-8fb0-4db3-b517-713db3ce6512"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/59d07113-8fb0-4db3-b517-713db3ce6512"
     }
   }
 }
