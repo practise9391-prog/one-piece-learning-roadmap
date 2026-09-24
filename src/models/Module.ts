@@ -10,6 +10,7 @@ export interface Module {
   created_at?: string;
   topic_count?: number;
   completed_topic_count?: number;
+  last_opened_topic_id?: string | null;
 }
 
 export interface ModuleRow {
@@ -24,6 +25,7 @@ export interface ModuleRow {
   created_at: string;
   topic_count?: number;
   completed_topic_count?: number;
+  last_opened_topic_id?: string | null;
 }
 
 export function moduleFromRow(row: ModuleRow): Module {
@@ -39,5 +41,6 @@ export function moduleFromRow(row: ModuleRow): Module {
     created_at: row.created_at,
     topic_count: row.topic_count ?? 0,
     completed_topic_count: row.completed_topic_count ?? 0,
+    last_opened_topic_id: row.last_opened_topic_id || null,
   };
 }

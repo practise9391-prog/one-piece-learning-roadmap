@@ -4,3 +4,5 @@ export * from './ProgressBar';
 export * from './OnePieceBadge';
 export * from './ActionButton';
 export * from './roadmap';
+export * from './learning';
+export * from './common/CodeBlock';

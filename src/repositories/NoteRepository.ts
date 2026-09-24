@@ -1,11 +1,9 @@
 import { dbManager } from '../database/DatabaseManager';
 import { Note, NoteRow, noteFromRow } from '../models/Note';
 import { getCurrentTimestamp } from '../utils/dateUtils';
+import { generateId } from '../utils/idGenerator';
 
 export class NoteRepository {
-  /**
-   * Retrieves all notes across the application.
-   */
   async getAll(): Promise<Note[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<NoteRow>(
@@ -14,9 +12,6 @@ export class NoteRepository {
     return rows.map(noteFromRow);
   }
 
-  /**
-   * Retrieves notes for a specific course.
-   */
   async getByCourseId(courseId: string): Promise<Note[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<NoteRow>(
@@ -26,9 +21,6 @@ export class NoteRepository {
     return rows.map(noteFromRow);
   }
 
-  /**
-   * Retrieves notes for a specific module.
-   */
   async getByModuleId(moduleId: string): Promise<Note[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<NoteRow>(
@@ -38,9 +30,31 @@ export class NoteRepository {
     return rows.map(noteFromRow);
   }
 
-  /**
-   * Retrieves a note by ID.
-   */
+  async getModuleNote(courseId: string, moduleId: string): Promise<Note | null> {
+    const db = await dbManager.getDatabase();
+    const row = await db.getFirstAsync<NoteRow>(
+      'SELECT * FROM notes WHERE course_id = ? AND module_id = ? ORDER BY updated_at DESC LIMIT 1;',
+      [courseId, moduleId]
+    );
+    return row ? noteFromRow(row) : null;
+  }
+
+  async saveModuleNote(courseId: string, moduleId: string, text: string): Promise<Note> {
+    const existing = await this.getModuleNote(courseId, moduleId);
+    if (existing) {
+      await this.update(existing.id, text);
+      const updated = await this.getById(existing.id);
+      return updated!;
+    } else {
+      return await this.create({
+        id: generateId('note'),
+        course_id: courseId,
+        module_id: moduleId,
+        note_text: text,
+      });
+    }
+  }
+
   async getById(id: string): Promise<Note | null> {
     const db = await dbManager.getDatabase();
     const row = await db.getFirstAsync<NoteRow>(
@@ -50,9 +64,6 @@ export class NoteRepository {
     return row ? noteFromRow(row) : null;
   }
 
-  /**
-   * Inserts a new note into SQLite.
-   */
   async create(note: {
     id: string;
     course_id: string;
@@ -83,9 +94,6 @@ export class NoteRepository {
     return created;
   }
 
-  /**
-   * Updates note text in SQLite.
-   */
   async update(id: string, note_text: string): Promise<void> {
     const db = await dbManager.getDatabase();
     const now = getCurrentTimestamp();
@@ -97,9 +105,6 @@ export class NoteRepository {
     );
   }
 
-  /**
-   * Deletes a note by ID.
-   */
   async delete(id: string): Promise<void> {
     const db = await dbManager.getDatabase();
     await db.runAsync('DELETE FROM notes WHERE id = ?;', [id]);
@@ -107,4 +112,3 @@ export class NoteRepository {
 }
 
 export const noteRepository = new NoteRepository();
-

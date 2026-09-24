@@ -1,6 +1,7 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { v1_initial_schema } from './v1_initial_schema';
 import { v2_add_topics_and_seed_roadmaps } from './v2_add_topics_and_seed_roadmaps';
+import { v3_module_learning_enhancements } from './v3_module_learning_enhancements';
 
 export interface Migration {
   version: number;
@@ -11,16 +12,12 @@ export interface Migration {
 export const MIGRATIONS: Migration[] = [
   v1_initial_schema,
   v2_add_topics_and_seed_roadmaps,
-  // Future migrations:
-  // v3_add_snake_roadmap_metadata.ts
-  // v4_add_certificates_and_streaks.ts
+  v3_module_learning_enhancements,
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
-  // Always enable foreign key enforcement in SQLite
   await db.execAsync('PRAGMA foreign_keys = ON;');
 
-  // Create schema_migrations tracking table if it doesn't exist
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY NOT NULL,
@@ -29,13 +26,11 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     );
   `);
 
-  // Get list of already executed versions
   const appliedRows = await db.getAllAsync<{ version: number }>(
     'SELECT version FROM schema_migrations ORDER BY version ASC;'
   );
   const appliedVersions = new Set(appliedRows.map((r) => r.version));
 
-  // Execute all unapplied migrations in ascending order
   for (const migration of MIGRATIONS) {
     if (!appliedVersions.has(migration.version)) {
       console.log(`[Database Migration] Applying migration v${migration.version}: ${migration.name}`);

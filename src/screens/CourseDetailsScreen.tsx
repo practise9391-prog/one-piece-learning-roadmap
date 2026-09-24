@@ -14,7 +14,7 @@ import { Module } from '../models/Module';
 import { Colors } from '../theme/colors';
 
 export const CourseDetailsScreen: React.FC = () => {
-  const { params, goBack, navigate } = useAppNavigation();
+  const { currentScreen, params, goBack, navigate } = useAppNavigation();
   const courseId = params?.courseId || 'python';
 
   const [course, setCourse] = useState<Course | null>(null);
@@ -35,8 +35,10 @@ export const CourseDetailsScreen: React.FC = () => {
   }, [courseId]);
 
   useEffect(() => {
-    loadCourseData();
-  }, [loadCourseData]);
+    if (currentScreen === 'CourseRoadmap') {
+      loadCourseData();
+    }
+  }, [currentScreen, loadCourseData]);
 
   const handleSelectModule = (mod: Module) => {
     navigate('ModuleDetails', { courseId, moduleId: mod.id });

@@ -7,6 +7,7 @@ export interface Topic {
   is_completed: boolean;
   completed_at?: string | null;
   created_at?: string;
+  content?: string | null;
 }
 
 export interface TopicRow {
@@ -18,6 +19,7 @@ export interface TopicRow {
   is_completed: number;
   completed_at: string | null;
   created_at: string;
+  content?: string | null;
 }
 
 export function topicFromRow(row: TopicRow): Topic {
@@ -30,5 +32,6 @@ export function topicFromRow(row: TopicRow): Topic {
     is_completed: row.is_completed === 1,
     completed_at: row.completed_at,
     created_at: row.created_at,
+    content: row.content || null,
   };
 }

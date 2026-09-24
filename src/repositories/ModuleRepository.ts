@@ -3,15 +3,12 @@ import { Module, ModuleRow, moduleFromRow } from '../models/Module';
 import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export class ModuleRepository {
-  /**
-   * Retrieves all modules for a course ordered by order_index, with topic counts.
-   */
   async getByCourseId(courseId: string): Promise<Module[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<ModuleRow>(
       `SELECT 
         m.id, m.course_id, m.title, m.description, m.order_index, m.icon,
-        m.is_completed, m.completed_at, m.created_at,
+        m.is_completed, m.completed_at, m.created_at, m.last_opened_topic_id,
         COUNT(t.id) as topic_count,
         SUM(CASE WHEN t.is_completed = 1 THEN 1 ELSE 0 END) as completed_topic_count
        FROM modules m
@@ -24,15 +21,12 @@ export class ModuleRepository {
     return rows.map(moduleFromRow);
   }
 
-  /**
-   * Retrieves all modules in the entire database.
-   */
   async getAll(): Promise<Module[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<ModuleRow>(
       `SELECT 
         m.id, m.course_id, m.title, m.description, m.order_index, m.icon,
-        m.is_completed, m.completed_at, m.created_at,
+        m.is_completed, m.completed_at, m.created_at, m.last_opened_topic_id,
         COUNT(t.id) as topic_count,
         SUM(CASE WHEN t.is_completed = 1 THEN 1 ELSE 0 END) as completed_topic_count
        FROM modules m
@@ -43,15 +37,12 @@ export class ModuleRepository {
     return rows.map(moduleFromRow);
   }
 
-  /**
-   * Retrieves a single module by ID with topic count.
-   */
   async getById(id: string): Promise<Module | null> {
     const db = await dbManager.getDatabase();
     const row = await db.getFirstAsync<ModuleRow>(
       `SELECT 
         m.id, m.course_id, m.title, m.description, m.order_index, m.icon,
-        m.is_completed, m.completed_at, m.created_at,
+        m.is_completed, m.completed_at, m.created_at, m.last_opened_topic_id,
         COUNT(t.id) as topic_count,
         SUM(CASE WHEN t.is_completed = 1 THEN 1 ELSE 0 END) as completed_topic_count
        FROM modules m
@@ -63,9 +54,6 @@ export class ModuleRepository {
     return row ? moduleFromRow(row) : null;
   }
 
-  /**
-   * Inserts a new module into SQLite.
-   */
   async create(module: {
     id: string;
     course_id: string;
@@ -81,8 +69,8 @@ export class ModuleRepository {
     await db.runAsync(
       `INSERT INTO modules (
         id, course_id, title, description, order_index, icon,
-        is_completed, completed_at, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?);`,
+        is_completed, completed_at, created_at, last_opened_topic_id
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, NULL);`,
       [
         module.id,
         module.course_id,
@@ -101,9 +89,6 @@ export class ModuleRepository {
     return created;
   }
 
-  /**
-   * Sets module completion status in SQLite.
-   */
   async setCompletionStatus(
     id: string,
     isCompleted: boolean,
@@ -118,17 +103,19 @@ export class ModuleRepository {
     );
   }
 
-  /**
-   * Deletes a module by ID.
-   */
+  async setLastOpenedTopic(moduleId: string, topicId: string): Promise<void> {
+    const db = await dbManager.getDatabase();
+    await db.runAsync(
+      'UPDATE modules SET last_opened_topic_id = ? WHERE id = ?;',
+      [topicId, moduleId]
+    );
+  }
+
   async delete(id: string): Promise<void> {
     const db = await dbManager.getDatabase();
     await db.runAsync('DELETE FROM modules WHERE id = ?;', [id]);
   }
 
-  /**
-   * Computes counts of total and completed modules for a given course.
-   */
   async countByCourse(courseId: string): Promise<{ total: number; completed: number }> {
     const db = await dbManager.getDatabase();
     const result = await db.getFirstAsync<{ total: number; completed: number }>(

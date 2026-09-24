@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,19 +7,39 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../components/Header';
 import { ProgressBar } from '../components/ProgressBar';
-import { OnePieceBadge } from '../components/OnePieceBadge';
+import {
+  TopicContentViewer,
+  NotesEditor,
+  TopicNavigation,
+  IncompleteWarningModal,
+  CompletionAnimationModal,
+} from '../components/learning';
 import { useAppNavigation } from '../navigation/NavigationContext';
 import { roadmapService } from '../services/RoadmapService';
 import { progressService } from '../services/ProgressService';
+import { topicContentService } from '../services/TopicContentService';
 import { topicRepository } from '../repositories/TopicRepository';
+import { moduleRepository } from '../repositories/ModuleRepository';
 import { Course } from '../models/Course';
 import { Module } from '../models/Module';
 import { Topic } from '../models/Topic';
 import { Colors } from '../theme/colors';
+
+export interface ModuleCompletionPolicy {
+  requireAllTopics: boolean;
+  allowOverride: boolean;
+}
+
+const DEFAULT_COMPLETION_POLICY: ModuleCompletionPolicy = {
+  requireAllTopics: true,
+  allowOverride: true,
+};
 
 export const ModuleDetailsScreen: React.FC = () => {
   const { params, goBack, navigate } = useAppNavigation();
@@ -31,10 +51,16 @@ export const ModuleDetailsScreen: React.FC = () => {
   const [previousModule, setPreviousModule] = useState<Module | null>(null);
   const [nextModule, setNextModule] = useState<Module | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [selectedTopicIndex, setSelectedTopicIndex] = useState<number>(0);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
-  const [congratulationsVisible, setCongratulationsVisible] = useState<boolean>(false);
+  const [resumedFromPrevious, setResumedFromPrevious] = useState<boolean>(false);
+
+  const [incompleteModalVisible, setIncompleteModalVisible] = useState<boolean>(false);
+  const [celebrationModalVisible, setCelebrationModalVisible] = useState<boolean>(false);
+
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const loadData = useCallback(async () => {
     if (!moduleId) return;
@@ -56,16 +82,27 @@ export const ModuleDetailsScreen: React.FC = () => {
         const nextMod = currentIndex < allMods.length - 1 ? allMods[currentIndex + 1] : null;
         setNextModule(nextMod);
 
-        // Check locked state: if previous module exists and is not completed
         const locked = prevMod !== null && !prevMod.is_completed;
         setIsLocked(locked);
       }
 
-      // Fetch topics
       const moduleTopics = await topicRepository.getByModuleId(moduleId);
       setTopics(moduleTopics);
+
+      const currentMod = allMods.find((m) => m.id === moduleId);
+      if (currentMod?.last_opened_topic_id && moduleTopics.length > 0) {
+        const foundIdx = moduleTopics.findIndex((t) => t.id === currentMod.last_opened_topic_id);
+        if (foundIdx > 0) {
+          setSelectedTopicIndex(foundIdx);
+          setResumedFromPrevious(true);
+        } else {
+          setSelectedTopicIndex(0);
+        }
+      } else {
+        setSelectedTopicIndex(0);
+      }
     } catch (err) {
-      console.error('Failed to load module details from SQLite:', err);
+      console.error('Failed to load module learning data from SQLite:', err);
     } finally {
       setLoading(false);
     }
@@ -75,26 +112,44 @@ export const ModuleDetailsScreen: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Toggle single topic completion in SQLite
-  const handleToggleTopic = async (topic: Topic) => {
+  const handleSelectTopicIndex = (index: number) => {
+    setSelectedTopicIndex(index);
+    setResumedFromPrevious(false);
+
+    if (topics[index] && module) {
+      moduleRepository.setLastOpenedTopic(module.id, topics[index].id).catch((err) => {
+        console.error('Failed to update last_opened_topic_id in SQLite:', err);
+      });
+    }
+  };
+
+  const handleToggleCurrentTopic = async () => {
+    const currentTopic = topics[selectedTopicIndex];
+    if (!currentTopic || !module) return;
+
     if (isLocked) {
       Alert.alert(
         'Island Locked',
-        `You must complete "${previousModule?.title}" first before marking topics in this island.`
+        `Conquer "${previousModule?.title}" first before marking topics in this island.`
       );
       return;
     }
 
     try {
-      const result = await progressService.toggleTopicCompletion(courseId, moduleId!, topic.id);
+      const result = await progressService.toggleTopicCompletion(
+        courseId,
+        module.id,
+        currentTopic.id
+      );
+
       setTopics((prev) =>
-        prev.map((t) => (t.id === topic.id ? result.topic : t))
+        prev.map((t) => (t.id === currentTopic.id ? result.topic : t))
       );
       setModule(result.module);
       setCourse(result.course);
 
       if (result.module.is_completed) {
-        setCongratulationsVisible(true);
+        setCelebrationModalVisible(true);
       }
     } catch (err) {
       console.error('Failed to toggle topic completion:', err);
@@ -102,11 +157,31 @@ export const ModuleDetailsScreen: React.FC = () => {
     }
   };
 
-  // Toggle entire module completion
-  const handleToggleModuleCompletion = async () => {
+  const executeCompleteModule = async () => {
     if (!module) return;
 
-    if (isLocked && !module.is_completed) {
+    try {
+      setActionLoading(true);
+      setIncompleteModalVisible(false);
+
+      const updatedCourse = await progressService.completeModule(courseId, module.id);
+      setCourse(updatedCourse);
+      setModule((prev) => (prev ? { ...prev, is_completed: true } : null));
+      setTopics((prev) => prev.map((t) => ({ ...t, is_completed: true })));
+
+      setCelebrationModalVisible(true);
+    } catch (err) {
+      console.error('Failed to complete module:', err);
+      Alert.alert('Database Error', 'Could not update module completion status.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePressCompleteModule = async () => {
+    if (!module) return;
+
+    if (isLocked) {
       Alert.alert(
         'Island Locked',
         `Conquer "${previousModule?.title || 'the previous module'}" first to unlock this island.`
@@ -114,30 +189,34 @@ export const ModuleDetailsScreen: React.FC = () => {
       return;
     }
 
-    try {
-      setActionLoading(true);
-      if (module.is_completed) {
+    if (module.is_completed) {
+      try {
+        setActionLoading(true);
         const updatedCourse = await progressService.uncompleteModule(courseId, module.id);
         setCourse(updatedCourse);
         setModule((prev) => (prev ? { ...prev, is_completed: false, completed_at: null } : null));
         setTopics((prev) => prev.map((t) => ({ ...t, is_completed: false, completed_at: null })));
-        setCongratulationsVisible(false);
-      } else {
-        const updatedCourse = await progressService.completeModule(courseId, module.id);
-        setCourse(updatedCourse);
-        setModule((prev) => (prev ? { ...prev, is_completed: true } : null));
-        setTopics((prev) => prev.map((t) => ({ ...t, is_completed: true })));
-        setCongratulationsVisible(true);
+      } catch (err) {
+        console.error('Failed to uncomplete module:', err);
+        Alert.alert('Database Error', 'Could not revert module completion.');
+      } finally {
+        setActionLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to toggle module completion:', err);
-      Alert.alert('Database Error', 'Could not update module completion status.');
-    } finally {
-      setActionLoading(false);
+      return;
+    }
+
+    const completedCount = topics.filter((t) => t.is_completed).length;
+    const hasIncompleteTopics = topics.length > 0 && completedCount < topics.length;
+
+    if (hasIncompleteTopics && DEFAULT_COMPLETION_POLICY.requireAllTopics) {
+      setIncompleteModalVisible(true);
+    } else {
+      await executeCompleteModule();
     }
   };
 
-  const handleProceedNext = () => {
+  const handleProceedToNextModule = () => {
+    setCelebrationModalVisible(false);
     if (nextModule) {
       navigate('ModuleDetails', { courseId, moduleId: nextModule.id });
     } else {
@@ -145,13 +224,18 @@ export const ModuleDetailsScreen: React.FC = () => {
     }
   };
 
+  const handleDismissCelebration = () => {
+    setCelebrationModalVisible(false);
+    goBack();
+  };
+
   if (loading && !module) {
     return (
       <View style={styles.container}>
-        <Header title="Module Details" showBack onBackPress={goBack} />
+        <Header title="Module Workspace" showBack onBackPress={goBack} />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Fetching Island Scrolls from SQLite...</Text>
+          <Text style={styles.loadingText}>Unrolling Module Scrolls from SQLite...</Text>
         </View>
       </View>
     );
@@ -171,9 +255,32 @@ export const ModuleDetailsScreen: React.FC = () => {
   const completedTopicsCount = topics.filter((t) => t.is_completed).length;
   const topicProgressPercentage =
     topics.length > 0 ? (completedTopicsCount / topics.length) * 100 : 0;
+  const currentTopic = topics[selectedTopicIndex] || topics[0];
+
+  const topicContent = currentTopic
+    ? topicContentService.getContent(
+        courseId,
+        module.title,
+        currentTopic.title,
+        currentTopic.content
+      )
+    : null;
+
+  const moduleStatus: 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED' = module.is_completed
+    ? 'COMPLETED'
+    : isLocked
+    ? 'LOCKED'
+    : completedTopicsCount > 0
+    ? 'IN_PROGRESS'
+    : 'AVAILABLE';
+
+  const isCourseFullyCompleted = course?.is_completed || false;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <Header
         title={`Module ${module.order}`}
         subtitle={course?.name || 'Roadmap'}
@@ -182,10 +289,11 @@ export const ModuleDetailsScreen: React.FC = () => {
       />
 
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* LOCKED BANNER IF LOCKED */}
         {isLocked && (
           <View style={styles.lockedBanner}>
             <Ionicons name="lock-closed" size={24} color="#DC2626" />
@@ -199,32 +307,15 @@ export const ModuleDetailsScreen: React.FC = () => {
           </View>
         )}
 
-        {/* CONGRATULATIONS CELEBRATION CARD */}
-        {congratulationsVisible && (
-          <View style={styles.congratsCard}>
-            <View style={styles.congratsHeader}>
-              <Ionicons name="trophy" size={26} color="#F59E0B" />
-              <Text style={styles.congratsTitle}>Island Conquered!</Text>
-            </View>
-            <Text style={styles.congratsSubtitle}>
-              You have completed Module {module.order}. The road ahead is now illuminated!
+        {resumedFromPrevious && currentTopic && (
+          <View style={styles.resumeBanner}>
+            <Ionicons name="bookmark" size={16} color="#0284C7" />
+            <Text style={styles.resumeBannerText}>
+              Resumed where you left off at: <Text style={styles.bold}>{currentTopic.title}</Text>
             </Text>
-            {nextModule && (
-              <TouchableOpacity
-                style={styles.nextModuleBtn}
-                onPress={handleProceedNext}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.nextModuleBtnText}>
-                  Sail to Module {nextModule.order}: {nextModule.title}
-                </Text>
-                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
           </View>
         )}
 
-        {/* MODULE HERO CARD */}
         <View
           style={[
             styles.moduleHeroCard,
@@ -243,20 +334,28 @@ export const ModuleDetailsScreen: React.FC = () => {
               <Text style={styles.moduleBadgeText}>MODULE {module.order}</Text>
             </View>
 
-            {module.is_completed ? (
+            {moduleStatus === 'COMPLETED' && (
               <View style={styles.statusPillCompleted}>
                 <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                <Text style={styles.statusPillCompletedText}>COMPLETED</Text>
+                <Text style={styles.statusPillCompletedText}>COMPLETED ✓</Text>
               </View>
-            ) : isLocked ? (
-              <View style={styles.statusPillLocked}>
-                <Ionicons name="lock-closed" size={14} color="#94A3B8" />
-                <Text style={styles.statusPillLockedText}>LOCKED</Text>
+            )}
+            {moduleStatus === 'IN_PROGRESS' && (
+              <View style={styles.statusPillInProgress}>
+                <Ionicons name="hourglass-outline" size={14} color="#D97706" />
+                <Text style={styles.statusPillInProgressText}>IN PROGRESS</Text>
               </View>
-            ) : (
+            )}
+            {moduleStatus === 'AVAILABLE' && (
               <View style={styles.statusPillAvailable}>
                 <Ionicons name="compass" size={14} color={Colors.primary} />
-                <Text style={styles.statusPillAvailableText}>ACTIVE JOURNEY</Text>
+                <Text style={styles.statusPillAvailableText}>AVAILABLE</Text>
+              </View>
+            )}
+            {moduleStatus === 'LOCKED' && (
+              <View style={styles.statusPillLocked}>
+                <Ionicons name="lock-closed" size={14} color="#94A3B8" />
+                <Text style={styles.statusPillLockedText}>LOCKED 🔒</Text>
               </View>
             )}
           </View>
@@ -266,147 +365,147 @@ export const ModuleDetailsScreen: React.FC = () => {
             <Text style={styles.moduleDescText}>{module.description}</Text>
           ) : null}
 
-          {/* Module Topics Progress Bar */}
-          {topics.length > 0 && (
-            <View style={styles.topicProgressSection}>
-              <View style={styles.progressRow}>
-                <Text style={styles.progressLabel}>Topics Mastered</Text>
-                <Text style={styles.progressValue}>
-                  {completedTopicsCount} / {topics.length} (
-                  {Math.round(topicProgressPercentage)}%)
-                </Text>
-              </View>
-              <ProgressBar
-                percentage={topicProgressPercentage}
-                color={module.is_completed ? Colors.success : Colors.primary}
-                height={8}
-              />
+          <View style={styles.topicProgressSection}>
+            <View style={styles.progressRow}>
+              <Text style={styles.progressLabel}>Curriculum Progress</Text>
+              <Text style={styles.progressValue}>
+                {completedTopicsCount} / {topics.length} topics (
+                {Math.round(topicProgressPercentage)}%)
+              </Text>
             </View>
-          )}
+            <ProgressBar
+              percentage={topicProgressPercentage}
+              color={module.is_completed ? Colors.success : Colors.primary}
+              height={8}
+            />
+          </View>
+        </View>
 
-          {/* Complete Module Button */}
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              module.is_completed && styles.actionButtonCompleted,
-              isLocked && styles.actionButtonLocked,
-            ]}
-            onPress={handleToggleModuleCompletion}
-            disabled={actionLoading || isLocked}
-            activeOpacity={0.85}
-          >
-            {actionLoading ? (
-              <ActivityIndicator
-                size="small"
-                color={module.is_completed ? Colors.textPrimary : '#FFFFFF'}
-              />
-            ) : (
-              <>
+        {topics.length > 0 && (
+          <TopicNavigation
+            topics={topics}
+            currentIndex={selectedTopicIndex}
+            onSelectIndex={handleSelectTopicIndex}
+            themeColor={Colors.primary}
+          />
+        )}
+
+        {currentTopic && (
+          <View style={styles.activeTopicCard}>
+            <View style={styles.activeTopicHeaderRow}>
+              <View style={styles.topicTitleBlock}>
+                <Text style={styles.topicOrderLabel}>
+                  TOPIC {selectedTopicIndex + 1} OF {topics.length}
+                </Text>
+                <Text style={styles.activeTopicTitle}>{currentTopic.title}</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleToggleCurrentTopic}
+                disabled={isLocked}
+                style={[
+                  styles.topicCheckButton,
+                  currentTopic.is_completed && styles.topicCheckButtonCompleted,
+                ]}
+                activeOpacity={0.75}
+              >
                 <Ionicons
-                  name={
-                    module.is_completed
-                      ? 'checkmark-done-circle'
-                      : isLocked
-                      ? 'lock-closed'
-                      : 'checkmark-circle-outline'
-                  }
-                  size={20}
-                  color={
-                    module.is_completed
-                      ? Colors.textSecondary
-                      : isLocked
-                      ? '#94A3B8'
-                      : '#FFFFFF'
-                  }
+                  name={currentTopic.is_completed ? 'checkbox' : 'square-outline'}
+                  size={24}
+                  color={currentTopic.is_completed ? Colors.success : Colors.textSecondary}
                 />
                 <Text
                   style={[
-                    styles.actionButtonText,
-                    module.is_completed && styles.actionButtonTextCompleted,
-                    isLocked && styles.actionButtonTextLocked,
+                    styles.topicCheckText,
+                    currentTopic.is_completed && styles.topicCheckTextCompleted,
                   ]}
                 >
-                  {module.is_completed
-                    ? 'Mark Module Incomplete'
-                    : isLocked
-                    ? 'Island Locked (Complete Previous)'
-                    : 'Mark Module As Completed'}
+                  {currentTopic.is_completed ? 'Completed' : 'Mark Complete'}
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* TOPICS LIST */}
-        <View style={styles.topicsSection}>
-          <View style={styles.topicsHeaderRow}>
-            <Text style={styles.sectionTitle}>Curriculum Topics</Text>
-            <Text style={styles.topicsSubtitle}>
-              {topics.length} topics in this island
-            </Text>
-          </View>
-
-          {topics.length === 0 ? (
-            <View style={styles.emptyTopicsCard}>
-              <Text style={styles.emptyTopicsText}>
-                No specific topics listed for this module.
-              </Text>
-            </View>
-          ) : (
-            topics.map((t, idx) => (
-              <TouchableOpacity
-                key={t.id}
-                style={[
-                  styles.topicRowCard,
-                  t.is_completed && styles.topicRowCompleted,
-                  isLocked && styles.topicRowLocked,
-                ]}
-                onPress={() => handleToggleTopic(t)}
-                activeOpacity={0.75}
-                disabled={isLocked}
-              >
-                <View style={styles.topicCheckboxContainer}>
-                  <Ionicons
-                    name={t.is_completed ? 'checkbox' : 'square-outline'}
-                    size={22}
-                    color={
-                      t.is_completed
-                        ? Colors.success
-                        : isLocked
-                        ? '#CBD5E1'
-                        : Colors.textSecondary
-                    }
-                  />
-                </View>
-
-                <View style={styles.topicTextContainer}>
-                  <Text
-                    style={[
-                      styles.topicTitle,
-                      t.is_completed && styles.topicTitleCompleted,
-                      isLocked && styles.topicTitleLocked,
-                    ]}
-                  >
-                    {idx + 1}. {t.title}
-                  </Text>
-                  {t.description ? (
-                    <Text
-                      style={[
-                        styles.topicDesc,
-                        t.is_completed && styles.topicDescCompleted,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {t.description}
-                    </Text>
-                  ) : null}
-                </View>
               </TouchableOpacity>
-            ))
+            </View>
+
+            {topicContent && <TopicContentViewer content={topicContent} />}
+          </View>
+        )}
+
+        <NotesEditor
+          courseId={courseId}
+          moduleId={module.id}
+          moduleTitle={module.title}
+        />
+
+        <TouchableOpacity
+          style={[
+            styles.completeModuleBtn,
+            module.is_completed && styles.completeModuleBtnCompleted,
+            isLocked && styles.completeModuleBtnLocked,
+          ]}
+          onPress={handlePressCompleteModule}
+          disabled={actionLoading || isLocked}
+          activeOpacity={0.85}
+        >
+          {actionLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={module.is_completed ? Colors.textPrimary : '#FFFFFF'}
+            />
+          ) : (
+            <>
+              <Ionicons
+                name={
+                  module.is_completed
+                    ? 'refresh-circle'
+                    : isLocked
+                    ? 'lock-closed'
+                    : 'checkmark-circle'
+                }
+                size={22}
+                color={
+                  module.is_completed
+                    ? Colors.textSecondary
+                    : isLocked
+                    ? '#94A3B8'
+                    : '#FFFFFF'
+                }
+              />
+              <Text
+                style={[
+                  styles.completeModuleBtnText,
+                  module.is_completed && styles.completeModuleBtnTextCompleted,
+                  isLocked && styles.completeModuleBtnTextLocked,
+                ]}
+              >
+                {module.is_completed
+                  ? 'Mark Module Incomplete'
+                  : isLocked
+                  ? 'Island Locked (Complete Previous First)'
+                  : '✓ Complete Module'}
+              </Text>
+            </>
           )}
-        </View>
+        </TouchableOpacity>
       </ScrollView>
-    </View>
+
+      <IncompleteWarningModal
+        visible={incompleteModalVisible}
+        completedTopicsCount={completedTopicsCount}
+        totalTopicsCount={topics.length}
+        onContinueLearning={() => setIncompleteModalVisible(false)}
+        onCompleteAnyway={executeCompleteModule}
+        allowOverride={DEFAULT_COMPLETION_POLICY.allowOverride}
+      />
+
+      <CompletionAnimationModal
+        visible={celebrationModalVisible}
+        moduleOrder={module.order}
+        moduleTitle={module.title}
+        nextModuleTitle={nextModule?.title}
+        isCourseCompleted={isCourseFullyCompleted}
+        onProceedNext={handleProceedToNextModule}
+        onDismiss={handleDismissCelebration}
+      />
+    </KeyboardAvoidingView>
   );
 };
 
@@ -434,7 +533,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   lockedBanner: {
     flexDirection: 'row',
@@ -444,7 +543,7 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
     borderRadius: 14,
     padding: 14,
-    marginBottom: 16,
+    marginBottom: 14,
     gap: 12,
   },
   lockedBannerText: {
@@ -461,45 +560,25 @@ const styles = StyleSheet.create({
     color: '#B91C1C',
     lineHeight: 16,
   },
-  congratsCard: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1.5,
-    borderColor: '#FDE68A',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  congratsHeader: {
+  resumeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     gap: 8,
-    marginBottom: 4,
-  },
-  congratsTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#92400E',
-  },
-  congratsSubtitle: {
-    fontSize: 13,
-    color: '#78350F',
-    lineHeight: 18,
     marginBottom: 12,
   },
-  nextModuleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#D97706',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    gap: 8,
+  resumeBannerText: {
+    fontSize: 12,
+    color: '#0369A1',
+    flex: 1,
   },
-  nextModuleBtnText: {
-    fontSize: 13,
+  bold: {
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   moduleHeroCard: {
     backgroundColor: '#FFFFFF',
@@ -512,7 +591,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   moduleHeroCardCompleted: {
     borderColor: '#BBF7D0',
@@ -557,6 +636,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.success,
   },
+  statusPillInProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statusPillInProgressText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  statusPillAvailable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statusPillAvailableText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
   statusPillLocked: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -566,16 +673,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#94A3B8',
-  },
-  statusPillAvailable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusPillAvailableText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.primary,
   },
   moduleTitleText: {
     fontSize: 20,
@@ -591,7 +688,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   topicProgressSection: {
-    marginVertical: 12,
+    marginTop: 6,
   },
   progressRow: {
     flexDirection: 'row',
@@ -608,114 +705,104 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0F172A',
   },
-  actionButton: {
+  activeTopicCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    marginVertical: 8,
+  },
+  activeTopicHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  topicTitleBlock: {
+    flex: 1,
+    marginRight: 10,
+  },
+  topicOrderLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.6,
+  },
+  activeTopicTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  topicCheckButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
+  },
+  topicCheckButtonCompleted: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  topicCheckText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  topicCheckTextCompleted: {
+    color: '#065F46',
+  },
+  completeModuleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     marginTop: 10,
     gap: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  actionButtonCompleted: {
+  completeModuleBtnCompleted: {
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#CBD5E1',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  actionButtonLocked: {
+  completeModuleBtnLocked: {
     backgroundColor: '#E2E8F0',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+  completeModuleBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
     color: '#FFFFFF',
+    letterSpacing: 0.4,
   },
-  actionButtonTextCompleted: {
+  completeModuleBtnTextCompleted: {
     color: Colors.textSecondary,
   },
-  actionButtonTextLocked: {
+  completeModuleBtnTextLocked: {
     color: '#94A3B8',
-  },
-  topicsSection: {
-    marginTop: 4,
-  },
-  topicsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  topicsSubtitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  emptyTopicsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  emptyTopicsText: {
-    fontSize: 13,
-    color: '#94A3B8',
-  },
-  topicRowCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  topicRowCompleted: {
-    borderColor: '#BBF7D0',
-    backgroundColor: '#F0FDF4',
-  },
-  topicRowLocked: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-    opacity: 0.7,
-  },
-  topicCheckboxContainer: {
-    marginRight: 12,
-  },
-  topicTextContainer: {
-    flex: 1,
-  },
-  topicTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    lineHeight: 18,
-  },
-  topicTitleCompleted: {
-    color: '#065F46',
-  },
-  topicTitleLocked: {
-    color: '#94A3B8',
-  },
-  topicDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  topicDescCompleted: {
-    color: '#047857',
   },
 });
