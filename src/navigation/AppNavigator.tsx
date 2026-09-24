@@ -2,6 +2,8 @@ import React from 'react';
 import { useAppNavigation } from './NavigationContext';
 import { HomeScreen } from '../screens/HomeScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
+import { CourseDetailsScreen } from '../screens/CourseDetailsScreen';
+import { ModuleDetailsScreen } from '../screens/ModuleDetailsScreen';
 import { PlaceholderScreen } from '../screens/placeholders/PlaceholderScreen';
 
 export const AppNavigator: React.FC = () => {
@@ -11,36 +13,20 @@ export const AppNavigator: React.FC = () => {
     case 'DatabaseTest':
       return <DatabaseTestScreen />;
 
+    case 'CourseRoadmap':
+      return <CourseDetailsScreen />;
+
+    case 'ModuleDetails':
+      return <ModuleDetailsScreen />;
+
     case 'Dashboard':
       return (
         <PlaceholderScreen
           title="Grand Line Dashboard"
           subtitle="Command Center"
           icon="grid"
-          plannedPart="Part 2"
+          plannedPart="Part 3"
           description="Central dashboard showing daily study goals, active course progress, recent achievements, and resume journey card."
-        />
-      );
-
-    case 'CourseRoadmap':
-      return (
-        <PlaceholderScreen
-          title="Course Roadmap"
-          subtitle="Snake Path View"
-          icon="map"
-          plannedPart="Part 2"
-          description="Interactive snake-like learning path displaying progression across islands, checkpoints, and locked/unlocked modules."
-        />
-      );
-
-    case 'ModuleDetails':
-      return (
-        <PlaceholderScreen
-          title="Module Details"
-          subtitle="Study & Exercises"
-          icon="document-text"
-          plannedPart="Part 2"
-          description="In-depth lesson materials, code examples, interactive checklist, and completion trigger."
         />
       );
 
@@ -115,4 +101,3 @@ export const AppNavigator: React.FC = () => {
       return <HomeScreen />;
   }
 };
-

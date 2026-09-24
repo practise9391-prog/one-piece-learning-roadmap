@@ -1,7 +1,9 @@
 import { courseRepository } from '../repositories/CourseRepository';
 import { moduleRepository } from '../repositories/ModuleRepository';
+import { topicRepository } from '../repositories/TopicRepository';
 import { Course } from '../models/Course';
 import { Module } from '../models/Module';
+import { Topic } from '../models/Topic';
 import { progressService } from './ProgressService';
 import { generateId, generateSlug } from '../utils/idGenerator';
 
@@ -14,7 +16,14 @@ export class RoadmapService {
   }
 
   /**
-   * Retrieves a course and its modules.
+   * Retrieves a single course by ID.
+   */
+  async getCourseById(courseId: string): Promise<Course | null> {
+    return await courseRepository.getById(courseId);
+  }
+
+  /**
+   * Retrieves a course and its modules with topic counts.
    */
   async getCourseWithModules(courseId: string): Promise<{
     course: Course | null;
@@ -25,6 +34,20 @@ export class RoadmapService {
       moduleRepository.getByCourseId(courseId),
     ]);
     return { course, modules };
+  }
+
+  /**
+   * Retrieves a module and all its topics ordered by order_index.
+   */
+  async getModuleWithTopics(moduleId: string): Promise<{
+    module: Module | null;
+    topics: Topic[];
+  }> {
+    const [mod, topics] = await Promise.all([
+      moduleRepository.getById(moduleId),
+      topicRepository.getByModuleId(moduleId),
+    ]);
+    return { module: mod, topics };
   }
 
   /**
@@ -40,7 +63,6 @@ export class RoadmapService {
     const slug = generateSlug(params.name);
     const id = slug.length > 0 ? slug : generateId('course');
 
-    // If ID exists, generate random unique suffix
     const existing = await courseRepository.getById(id);
     const finalId = existing ? `${id}_${Date.now().toString(36)}` : id;
 
@@ -65,6 +87,7 @@ export class RoadmapService {
     title: string;
     description?: string;
     order?: number;
+    icon?: string;
   }): Promise<Module> {
     const existingModules = await moduleRepository.getByCourseId(params.courseId);
     const nextOrder = params.order ?? existingModules.length + 1;
@@ -76,9 +99,9 @@ export class RoadmapService {
       title: params.title,
       description: params.description || '',
       order: nextOrder,
+      icon: params.icon || 'book-outline',
     });
 
-    // Recalculate course stats
     await progressService.recalculateCourse(params.courseId);
 
     return createdModule;
@@ -101,4 +124,3 @@ export class RoadmapService {
 }
 
 export const roadmapService = new RoadmapService();
-

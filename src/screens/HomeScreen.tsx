@@ -172,7 +172,7 @@ export const HomeScreen: React.FC = () => {
           renderItem={({ item }) => (
             <CourseCard
               course={item}
-              onPress={() => navigate('DatabaseTest', { courseId: item.id })}
+              onPress={() => navigate('CourseRoadmap', { courseId: item.id })}
             />
           )}
           ListHeaderComponent={renderHeader}

@@ -1,0 +1,163 @@
+import { CourseRoadmapSeed } from './types';
+
+export const gitRoadmap: CourseRoadmapSeed = {
+  courseId: 'git',
+  modules: [
+    {
+      title: 'Git fundamentals',
+      description: 'Distributed version control concepts, working directory, staging area, and repository.',
+      icon: 'git-network-outline',
+      topics: ['Centralized vs Distributed VCS', 'Three states (Working, Staging, Committed)', 'SHA-1/SHA-256 commit hashes', 'How Git stores snapshots'],
+    },
+    {
+      title: 'Git installation',
+      description: 'Installing Git across operating systems and initial user configurations.',
+      icon: 'download-outline',
+      topics: ['Installing on Linux, Mac, and Windows', 'git config --global user.name and email', 'Default branch configuration (main)', 'Credential helpers'],
+    },
+    {
+      title: 'Repository',
+      description: 'Understanding Git repositories, the hidden .git directory, and bare repositories.',
+      icon: 'folder-outline',
+      topics: ['What is a Git repository?', 'Inside the .git directory', 'Objects, refs, and HEAD pointer', 'Bare repositories vs working repositories'],
+    },
+    {
+      title: 'git init',
+      description: 'Initializing new local projects under version control.',
+      icon: 'sparkles-outline',
+      topics: ['Creating repository with git init', 'Setting initial branch name', 'Inspecting git status immediately after init'],
+    },
+    {
+      title: 'git status',
+      description: 'Tracking working directory changes, staged files, untracked files, and short status.',
+      icon: 'search-outline',
+      topics: ['Interpreting git status output', 'Untracked vs Tracked vs Modified', 'Short format: git status -s', 'Branch tracking status'],
+    },
+    {
+      title: 'git add',
+      description: 'Staging modifications for commit: individual files, directories, patch mode, and .gitignore.',
+      icon: 'add-circle-outline',
+      topics: ['Staging single file', 'Staging all files (git add .)', 'Interactive and patch staging (git add -p)', '.gitignore rules and syntax'],
+    },
+    {
+      title: 'git commit',
+      description: 'Recording permanent snapshots with descriptive commit messages and best practices.',
+      icon: 'checkmark-circle-outline',
+      topics: ['Writing effective commit messages', 'git commit -m and multi-line commits', 'Amending the last commit (git commit --amend)', 'Atomic commits principle'],
+    },
+    {
+      title: 'git log',
+      description: 'Inspecting repository history, viewing commit graphs, author filtering, and diffs.',
+      icon: 'newspaper-outline',
+      topics: ['git log formatting options', 'One-line logs and ASCII graphs (--oneline --graph)', 'Filtering by author, date, and commit message', 'Inspecting commit patches (git log -p)'],
+    },
+    {
+      title: 'Branches',
+      description: 'Lightweight pointers to commits, creating, switching, listing, and deleting branches.',
+      icon: 'git-branch-outline',
+      topics: ['What is a branch in Git?', 'git branch and git checkout / switch', 'Creating branches from specific commits', 'Deleting local branches (-d vs -D)'],
+    },
+    {
+      title: 'Merge',
+      description: 'Integrating branch histories: Fast-Forward merges vs Three-Way merge commits.',
+      icon: 'git-merge-outline',
+      topics: ['Fast-forward merge mechanics', 'Three-way merge (recursive/ort)', 'Creating explicit merge commits (--no-ff)', 'Aborting in-progress merges'],
+    },
+    {
+      title: 'Rebase',
+      description: 'Reapplying commits on top of another base tip, maintaining a clean linear history.',
+      icon: 'git-pull-request-outline',
+      topics: ['Rebase vs Merge trade-offs', 'The Golden Rule of Rebasing', 'Interactive rebase (git rebase -i)', 'Squashing and rewording commits'],
+    },
+    {
+      title: 'Remote repositories',
+      description: 'Collaborating via remote endpoints, origin, upstream, and remote inspection.',
+      icon: 'cloud-outline',
+      topics: ['Adding remotes (git remote add)', 'Inspecting remote details (git remote -v)', 'Renaming and removing remotes', 'Remote tracking branches (origin/main)'],
+    },
+    {
+      title: 'GitHub',
+      description: 'Hosting Git projects on GitHub, SSH keys, Personal Access Tokens, and profile management.',
+      icon: 'logo-github',
+      topics: ['Setting up SSH keys with GitHub', 'Personal Access Tokens (PAT)', 'Repository settings and branch protection', 'GitHub Web UI navigation'],
+    },
+    {
+      title: 'Push',
+      description: 'Uploading local branch commits to remote servers and setting upstream tracking.',
+      icon: 'arrow-up-circle-outline',
+      topics: ['git push origin <branch>', 'Upstream tracking flag (-u)', 'Pushing tags (--tags)', 'Force pushing risks and --force-with-lease'],
+    },
+    {
+      title: 'Pull',
+      description: 'Downloading and integrating remote updates: git pull as fetch + merge / rebase.',
+      icon: 'arrow-down-circle-outline',
+      topics: ['git pull mechanics', 'git pull --rebase', 'Fast-forward only pulls (pull.ff = only)', 'Resolving incoming divergence'],
+    },
+    {
+      title: 'Fetch',
+      description: 'Retrieving remote commits without mutating local working branches.',
+      icon: 'refresh-outline',
+      topics: ['git fetch vs git pull', 'Fetching all remotes and tags', 'Inspecting fetched remote branches before merging', 'Pruning stale remote branches (--prune)'],
+    },
+    {
+      title: 'Clone',
+      description: 'Downloading full repository history, shallow clones, and directory specifications.',
+      icon: 'copy-outline',
+      topics: ['Cloning via HTTPS and SSH', 'Cloning into specific folder', 'Shallow clones (--depth 1) for large repos', 'Cloning specific branches'],
+    },
+    {
+      title: 'Pull requests',
+      description: 'Code review workflows, PR creation, review comments, approval gates, and merging.',
+      icon: 'git-pull-request-outline',
+      topics: ['What is a Pull Request?', 'Forking and branch-based PRs', 'Code review etiquette and inline comments', 'Merge strategies on GitHub (Merge, Squash, Rebase)'],
+    },
+    {
+      title: 'Merge conflicts',
+      description: 'Understanding conflicting file changes, marker resolution, and completing conflict merges.',
+      icon: 'alert-circle-outline',
+      topics: ['Why merge conflicts occur', 'Conflict markers (<<<<<<<, =======, >>>>>>>)', 'Resolving conflicts manually', 'Using graphical merge tools'],
+    },
+    {
+      title: 'Stash',
+      description: 'Temporarily shelving uncommitted changes to switch context without committing.',
+      icon: 'archive-outline',
+      topics: ['git stash save', 'git stash list', 'git stash pop vs git stash apply', 'Stashing untracked files (-u)'],
+    },
+    {
+      title: 'Tags',
+      description: 'Marking specific points in history as important, release versioning, and semantic tags.',
+      icon: 'pricetag-outline',
+      topics: ['Lightweight vs Annotated tags', 'Creating semantic release tags (v1.0.0)', 'Pushing tags to remotes', 'Checking out specific tags'],
+    },
+    {
+      title: 'Reset',
+      description: 'Moving HEAD and branch pointers: soft, mixed, and hard resets.',
+      icon: 'arrow-undo-outline',
+      topics: ['git reset --soft', 'git reset --mixed (default)', 'git reset --hard and data loss caveats', 'Unstaging files with reset'],
+    },
+    {
+      title: 'Revert',
+      description: 'Safely rolling back published history by creating forward-undo commits.',
+      icon: 'return-up-back-outline',
+      topics: ['git revert vs git reset', 'Reverting a specific commit', 'Reverting merge commits (-m flag)', 'Safe team collaboration rollback'],
+    },
+    {
+      title: 'Cherry-pick',
+      description: 'Selecting and applying specific commits from one branch onto another.',
+      icon: 'git-commit-outline',
+      topics: ['Cherry-pick use cases (hotfixes)', 'Running git cherry-pick <hash>', 'Resolving conflicts during cherry-pick', 'Cherry-picking multiple commits'],
+    },
+    {
+      title: 'Git workflows',
+      description: 'Team branching models: GitHub Flow, Git Flow, and Trunk-Based Development.',
+      icon: 'git-compare-outline',
+      topics: ['GitHub Flow (feature branches + PRs)', 'Git Flow (develop, release, hotfix)', 'Trunk-Based Development', 'Choosing the right workflow'],
+    },
+    {
+      title: 'Git best practices',
+      description: 'Production habits: commit hygiene, rebasing before PR, signed commits, and recovery.',
+      icon: 'shield-checkmark-outline',
+      topics: ['Commit message conventions (Conventional Commits)', 'GPG commit signing', 'git reflog for emergency disaster recovery', 'Keeping branches short-lived'],
+    },
+  ],
+};

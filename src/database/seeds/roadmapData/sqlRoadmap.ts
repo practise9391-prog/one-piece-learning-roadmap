@@ -1,0 +1,163 @@
+import { CourseRoadmapSeed } from './types';
+
+export const sqlRoadmap: CourseRoadmapSeed = {
+  courseId: 'sql',
+  modules: [
+    {
+      title: 'Database fundamentals',
+      description: 'Relational model principles, DBMS vs RDBMS, tables, rows, columns, and ACID properties.',
+      icon: 'server-outline',
+      topics: ['Relational database concepts', 'RDBMS vs NoSQL', 'Tables, rows, and attributes', 'ACID properties overview'],
+    },
+    {
+      title: 'SQL basics',
+      description: 'SQL language categories: DDL, DML, DQL, DCL, TCL, data types, and syntax rules.',
+      icon: 'code-slash-outline',
+      topics: ['SQL dialects', 'Data types (INT, VARCHAR, DATE, BOOLEAN)', 'SQL syntax conventions', 'Comments in SQL'],
+    },
+    {
+      title: 'SELECT',
+      description: 'Querying tables, selecting specific columns, column aliasing, and computed columns.',
+      icon: 'search-outline',
+      topics: ['SELECT * vs specific columns', 'Column aliases (AS)', 'Calculated expressions', 'Literal values in SELECT'],
+    },
+    {
+      title: 'WHERE',
+      description: 'Filtering rows using comparison operators, logical conjunctions, BETWEEN, and IN.',
+      icon: 'filter-outline',
+      topics: ['Comparison operators (=, !=, <, >)', 'AND, OR, NOT logic', 'BETWEEN ... AND ...', 'IN and NOT IN clauses', 'LIKE and wildcards (%)'],
+    },
+    {
+      title: 'ORDER BY',
+      description: 'Sorting query results, ascending vs descending order, multi-column sorting.',
+      icon: 'swap-vertical-outline',
+      topics: ['ASC and DESC sorting', 'Sorting by multiple columns', 'Sorting by column expressions', 'Handling NULL values in sorting'],
+    },
+    {
+      title: 'LIMIT',
+      description: 'Restricting result set size, pagination patterns, and OFFSET offset skipping.',
+      icon: 'cut-outline',
+      topics: ['LIMIT clause', 'OFFSET clause for pagination', 'Performance of deep pagination', 'Dialect differences (TOP / ROWNUM)'],
+    },
+    {
+      title: 'DISTINCT',
+      description: 'Deduplicating retrieved rows, single column vs multi-column distinct queries.',
+      icon: 'sparkles-outline',
+      topics: ['Removing duplicate rows', 'DISTINCT on multiple columns', 'DISTINCT vs GROUP BY performance'],
+    },
+    {
+      title: 'Aggregate functions',
+      description: 'Mathematical summarizing across row sets: COUNT, SUM, AVG, MIN, MAX.',
+      icon: 'calculator-outline',
+      topics: ['COUNT(*) vs COUNT(column)', 'SUM and AVG calculations', 'MIN and MAX values', 'Aggregating distinct values'],
+    },
+    {
+      title: 'GROUP BY',
+      description: 'Grouping row sets into categorical buckets, multi-column aggregation groupings.',
+      icon: 'pie-chart-outline',
+      topics: ['Grouping by single column', 'Grouping by multiple columns', 'SELECT rules with GROUP BY', 'Common aggregation mistakes'],
+    },
+    {
+      title: 'HAVING',
+      description: 'Filtering aggregated groupings, distinguishing WHERE filters from HAVING filters.',
+      icon: 'funnel-outline',
+      topics: ['Filtering group aggregates', 'WHERE vs HAVING execution phase', 'Complex HAVING expressions'],
+    },
+    {
+      title: 'JOINS',
+      description: 'Combining relations across foreign keys: INNER, LEFT, RIGHT, FULL, and CROSS joins.',
+      icon: 'git-merge-outline',
+      topics: ['INNER JOIN mechanics', 'LEFT (OUTER) JOIN', 'RIGHT (OUTER) JOIN', 'FULL OUTER JOIN', 'CROSS JOIN and Self joins'],
+    },
+    {
+      title: 'Subqueries',
+      description: 'Nested SQL queries: scalar subqueries, correlated subqueries, EXISTS, and IN subqueries.',
+      icon: 'layers-outline',
+      topics: ['Scalar subqueries', 'Subqueries in WHERE clause', 'Correlated subqueries', 'EXISTS vs IN performance'],
+    },
+    {
+      title: 'INSERT',
+      description: 'Adding new records, inserting single rows, multi-row bulk insert, and INSERT INTO SELECT.',
+      icon: 'add-circle-outline',
+      topics: ['Single-row INSERT', 'Multi-row bulk insertion', 'INSERT INTO SELECT', 'Handling default and auto-increment values'],
+    },
+    {
+      title: 'UPDATE',
+      description: 'Modifying existing rows, conditional updates, updating with joins, and safety practices.',
+      icon: 'create-outline',
+      topics: ['UPDATE syntax with WHERE', 'Preventing accidental table-wide updates', 'UPDATE with JOIN/Subquery', 'Returning updated rows'],
+    },
+    {
+      title: 'DELETE',
+      description: 'Removing rows from tables, conditional deletion, and comparing DELETE vs TRUNCATE vs DROP.',
+      icon: 'trash-outline',
+      topics: ['DELETE with WHERE condition', 'DELETE vs TRUNCATE TABLE', 'DROP TABLE considerations', 'Soft delete pattern'],
+    },
+    {
+      title: 'Constraints',
+      description: 'Enforcing domain integrity: NOT NULL, UNIQUE, CHECK, and DEFAULT values.',
+      icon: 'shield-outline',
+      topics: ['NOT NULL constraint', 'UNIQUE constraint', 'CHECK constraint validation', 'DEFAULT values on column'],
+    },
+    {
+      title: 'Primary keys',
+      description: 'Unique entity identification, natural vs surrogate keys, auto-increment, and UUIDs.',
+      icon: 'key-outline',
+      topics: ['Primary key significance', 'Surrogate keys vs Natural keys', 'Auto-incrementing integers', 'UUID primary keys'],
+    },
+    {
+      title: 'Foreign keys',
+      description: 'Referential integrity, parent-child relations, and ON DELETE CASCADE/SET NULL rules.',
+      icon: 'link-outline',
+      topics: ['Foreign key declaration', 'Referential integrity rules', 'ON DELETE CASCADE', 'ON DELETE SET NULL / RESTRICT'],
+    },
+    {
+      title: 'ALTER',
+      description: 'Modifying existing schema definitions: adding columns, modifying types, dropping constraints.',
+      icon: 'construct-outline',
+      topics: ['ALTER TABLE ADD COLUMN', 'ALTER TABLE DROP COLUMN', 'Renaming tables and columns', 'Adding constraints to live tables'],
+    },
+    {
+      title: 'Views',
+      description: 'Virtual tables, encapsulating complex joins, security abstraction, and materialized views.',
+      icon: 'eye-outline',
+      topics: ['Creating and dropping views', 'Read-only vs updatable views', 'Materialized views concepts', 'Security & abstraction benefits'],
+    },
+    {
+      title: 'Indexes',
+      description: 'Query acceleration structures: B-Tree indexes, composite indexes, uniqueness, and costs.',
+      icon: 'flash-outline',
+      topics: ['How B-Tree indexes work', 'Creating single & composite indexes', 'Index overhead on writes', 'EXPLAIN query plan basics'],
+    },
+    {
+      title: 'Transactions',
+      description: 'Atomic unit of work: BEGIN TRANSACTION, COMMIT, ROLLBACK, and isolation levels.',
+      icon: 'repeat-outline',
+      topics: ['Transaction lifecycle', 'COMMIT and ROLLBACK', 'Dirty reads, Non-repeatable reads, Phantoms', 'Transaction isolation levels'],
+    },
+    {
+      title: 'Normalization',
+      description: 'Organizing database tables to reduce redundancy: 1NF, 2NF, 3NF, and BCNF standards.',
+      icon: 'git-network-outline',
+      topics: ['Anomalies (Insertion, Update, Deletion)', 'First Normal Form (1NF)', 'Second Normal Form (2NF)', 'Third Normal Form (3NF)', 'Denormalization trade-offs'],
+    },
+    {
+      title: 'Stored procedures concepts',
+      description: 'Database-side routines, parameters, triggers, stored functions, and execution scope.',
+      icon: 'hardware-chip-outline',
+      topics: ['Stored procedures overview', 'User-defined functions (UDF)', 'Database triggers', 'Pros and cons of in-database logic'],
+    },
+    {
+      title: 'SQL interview questions',
+      description: 'Frequently tested SQL technical interview queries: second highest salary, duplicates, gaps.',
+      icon: 'help-circle-outline',
+      topics: ['Nth highest salary query', 'Finding and deleting duplicate rows', 'Consecutive active days query', 'Department top earners'],
+    },
+    {
+      title: 'Advanced SQL',
+      description: 'Modern analytical SQL: Common Table Expressions (WITH/CTEs) and Window Functions.',
+      icon: 'trophy-outline',
+      topics: ['Common Table Expressions (WITH clause)', 'Recursive CTEs', 'Window functions (ROW_NUMBER, RANK, DENSE_RANK)', 'LEAD and LAG analytical functions', 'Query optimization strategies'],
+    },
+  ],
+};

@@ -4,12 +4,21 @@ import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export class ModuleRepository {
   /**
-   * Retrieves all modules for a course ordered by order_index.
+   * Retrieves all modules for a course ordered by order_index, with topic counts.
    */
   async getByCourseId(courseId: string): Promise<Module[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<ModuleRow>(
-      'SELECT * FROM modules WHERE course_id = ? ORDER BY order_index ASC;',
+      `SELECT 
+        m.id, m.course_id, m.title, m.description, m.order_index, m.icon,
+        m.is_completed, m.completed_at, m.created_at,
+        COUNT(t.id) as topic_count,
+        SUM(CASE WHEN t.is_completed = 1 THEN 1 ELSE 0 END) as completed_topic_count
+       FROM modules m
+       LEFT JOIN topics t ON t.module_id = m.id
+       WHERE m.course_id = ?
+       GROUP BY m.id
+       ORDER BY m.order_index ASC;`,
       [courseId]
     );
     return rows.map(moduleFromRow);
@@ -21,18 +30,34 @@ export class ModuleRepository {
   async getAll(): Promise<Module[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<ModuleRow>(
-      'SELECT * FROM modules ORDER BY order_index ASC;'
+      `SELECT 
+        m.id, m.course_id, m.title, m.description, m.order_index, m.icon,
+        m.is_completed, m.completed_at, m.created_at,
+        COUNT(t.id) as topic_count,
+        SUM(CASE WHEN t.is_completed = 1 THEN 1 ELSE 0 END) as completed_topic_count
+       FROM modules m
+       LEFT JOIN topics t ON t.module_id = m.id
+       GROUP BY m.id
+       ORDER BY m.order_index ASC;`
     );
     return rows.map(moduleFromRow);
   }
 
   /**
-   * Retrieves a single module by ID.
+   * Retrieves a single module by ID with topic count.
    */
   async getById(id: string): Promise<Module | null> {
     const db = await dbManager.getDatabase();
     const row = await db.getFirstAsync<ModuleRow>(
-      'SELECT * FROM modules WHERE id = ?;',
+      `SELECT 
+        m.id, m.course_id, m.title, m.description, m.order_index, m.icon,
+        m.is_completed, m.completed_at, m.created_at,
+        COUNT(t.id) as topic_count,
+        SUM(CASE WHEN t.is_completed = 1 THEN 1 ELSE 0 END) as completed_topic_count
+       FROM modules m
+       LEFT JOIN topics t ON t.module_id = m.id
+       WHERE m.id = ?
+       GROUP BY m.id;`,
       [id]
     );
     return row ? moduleFromRow(row) : null;
@@ -47,6 +72,7 @@ export class ModuleRepository {
     title: string;
     description?: string;
     order?: number;
+    icon?: string;
   }): Promise<Module> {
     const db = await dbManager.getDatabase();
     const now = getCurrentTimestamp();
@@ -54,15 +80,16 @@ export class ModuleRepository {
 
     await db.runAsync(
       `INSERT INTO modules (
-        id, course_id, title, description, order_index,
+        id, course_id, title, description, order_index, icon,
         is_completed, completed_at, created_at
-      ) VALUES (?, ?, ?, ?, ?, 0, NULL, ?);`,
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?);`,
       [
         module.id,
         module.course_id,
         module.title,
         module.description || '',
         orderIndex,
+        module.icon || 'book-outline',
         now,
       ]
     );
@@ -121,4 +148,3 @@ export class ModuleRepository {
 }
 
 export const moduleRepository = new ModuleRepository();
-

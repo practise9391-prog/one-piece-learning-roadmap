@@ -1,5 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { v1_initial_schema } from './v1_initial_schema';
+import { v2_add_topics_and_seed_roadmaps } from './v2_add_topics_and_seed_roadmaps';
 
 export interface Migration {
   version: number;
@@ -9,9 +10,10 @@ export interface Migration {
 
 export const MIGRATIONS: Migration[] = [
   v1_initial_schema,
+  v2_add_topics_and_seed_roadmaps,
   // Future migrations:
-  // v2_add_certificates.ts
-  // v3_add_streak_and_points.ts
+  // v3_add_snake_roadmap_metadata.ts
+  // v4_add_certificates_and_streaks.ts
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
@@ -46,4 +48,3 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     }
   }
 }
-

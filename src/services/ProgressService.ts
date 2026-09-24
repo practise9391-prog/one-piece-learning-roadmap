@@ -1,8 +1,11 @@
 import { dbManager } from '../database/DatabaseManager';
 import { courseRepository } from '../repositories/CourseRepository';
 import { moduleRepository } from '../repositories/ModuleRepository';
+import { topicRepository } from '../repositories/TopicRepository';
 import { progressRepository } from '../repositories/ProgressRepository';
 import { Course } from '../models/Course';
+import { Module } from '../models/Module';
+import { Topic } from '../models/Topic';
 import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export class ProgressService {
@@ -17,17 +20,23 @@ export class ProgressService {
       // 1. Mark module completed in SQLite
       await moduleRepository.setCompletionStatus(moduleId, true, now);
 
-      // 2. Upsert user progress record in SQLite
+      // 2. Mark all topics under this module completed as well
+      await db.runAsync(
+        'UPDATE topics SET is_completed = 1, completed_at = ? WHERE module_id = ?;',
+        [now, moduleId]
+      );
+
+      // 3. Upsert user progress record in SQLite
       await progressRepository.upsert(courseId, moduleId, 'completed', now);
 
-      // 3. Count total and completed modules for the course
+      // 4. Count total and completed modules for the course
       const counts = await moduleRepository.countByCourse(courseId);
       const total = counts.total;
       const completed = counts.completed;
       const percentage = total > 0 ? Math.round((completed / total) * 1000) / 10 : 0.0;
       const isCourseCompleted = total > 0 && completed === total;
 
-      // 4. Update course row in SQLite
+      // 5. Update course row in SQLite
       await courseRepository.updateProgressStats(
         courseId,
         total,
@@ -54,17 +63,23 @@ export class ProgressService {
       // 1. Revert module status
       await moduleRepository.setCompletionStatus(moduleId, false, null);
 
-      // 2. Revert progress record to in_progress
+      // 2. Mark topics under this module uncompleted
+      await db.runAsync(
+        'UPDATE topics SET is_completed = 0, completed_at = NULL WHERE module_id = ?;',
+        [moduleId]
+      );
+
+      // 3. Revert progress record to in_progress
       await progressRepository.upsert(courseId, moduleId, 'in_progress', null);
 
-      // 3. Recalculate
+      // 4. Recalculate
       const counts = await moduleRepository.countByCourse(courseId);
       const total = counts.total;
       const completed = counts.completed;
       const percentage = total > 0 ? Math.round((completed / total) * 1000) / 10 : 0.0;
       const isCourseCompleted = total > 0 && completed === total;
 
-      // 4. Update course
+      // 5. Update course
       await courseRepository.updateProgressStats(
         courseId,
         total,
@@ -79,6 +94,81 @@ export class ProgressService {
       throw new Error(`Course ${courseId} not found after progress calculation`);
     }
     return updatedCourse;
+  }
+
+  /**
+   * Toggles topic completion status and updates module and course completion atomically.
+   */
+  async toggleTopicCompletion(
+    courseId: string,
+    moduleId: string,
+    topicId: string
+  ): Promise<{ topic: Topic; module: Module; course: Course }> {
+    const db = await dbManager.getDatabase();
+    const now = getCurrentTimestamp();
+
+    const currentTopic = await topicRepository.getById(topicId);
+    if (!currentTopic) {
+      throw new Error(`Topic ${topicId} not found`);
+    }
+
+    const nextState = !currentTopic.is_completed;
+    const completedAt = nextState ? now : null;
+
+    await db.withTransactionAsync(async () => {
+      // 1. Update topic
+      await topicRepository.setCompletionStatus(topicId, nextState, completedAt);
+
+      // 2. Check if all topics in this module are now completed
+      const topicCounts = await topicRepository.countByModule(moduleId);
+      const isModuleComplete =
+        topicCounts.total > 0 && topicCounts.completed === topicCounts.total;
+
+      await moduleRepository.setCompletionStatus(
+        moduleId,
+        isModuleComplete,
+        isModuleComplete ? now : null
+      );
+
+      // 3. Update user_progress
+      await progressRepository.upsert(
+        courseId,
+        moduleId,
+        isModuleComplete ? 'completed' : topicCounts.completed > 0 ? 'in_progress' : 'not_started',
+        isModuleComplete ? now : null
+      );
+
+      // 4. Recalculate course statistics
+      const moduleCounts = await moduleRepository.countByCourse(courseId);
+      const total = moduleCounts.total;
+      const completed = moduleCounts.completed;
+      const percentage = total > 0 ? Math.round((completed / total) * 1000) / 10 : 0.0;
+      const isCourseCompleted = total > 0 && completed === total;
+
+      await courseRepository.updateProgressStats(
+        courseId,
+        total,
+        completed,
+        percentage,
+        isCourseCompleted
+      );
+    });
+
+    const [updatedTopic, updatedModule, updatedCourse] = await Promise.all([
+      topicRepository.getById(topicId),
+      moduleRepository.getById(moduleId),
+      courseRepository.getById(courseId),
+    ]);
+
+    if (!updatedTopic || !updatedModule || !updatedCourse) {
+      throw new Error('Failed to retrieve updated records after topic toggle');
+    }
+
+    return {
+      topic: updatedTopic,
+      module: updatedModule,
+      course: updatedCourse,
+    };
   }
 
   /**
@@ -108,4 +198,3 @@ export class ProgressService {
 }
 
 export const progressService = new ProgressService();
-
