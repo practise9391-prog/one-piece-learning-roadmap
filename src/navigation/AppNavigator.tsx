@@ -1,18 +1,26 @@
 import React from 'react';
 import { useAppNavigation } from './NavigationContext';
-import { HomeScreen } from '../screens/HomeScreen';
-import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
+import { DashboardScreen } from '../screens/DashboardScreen';
+import { CoursesScreen } from '../screens/CoursesScreen';
 import { CourseDetailsScreen } from '../screens/CourseDetailsScreen';
 import { ModuleDetailsScreen } from '../screens/ModuleDetailsScreen';
 import { CourseCompletionScreen } from '../screens/CourseCompletionScreen';
-import { PlaceholderScreen } from '../screens/placeholders/PlaceholderScreen';
+import { NotesScreen } from '../screens/NotesScreen';
+import { CompletedScreen } from '../screens/CompletedScreen';
+import { RemainingScreen } from '../screens/RemainingScreen';
+import { StatisticsScreen } from '../screens/StatisticsScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
+import { PracticeScreen } from '../screens/PracticeScreen';
+import { NewsScreen } from '../screens/NewsScreen';
+import { MotivationScreen } from '../screens/MotivationScreen';
+import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
 
 export const AppNavigator: React.FC = () => {
   const { currentScreen } = useAppNavigation();
 
   switch (currentScreen) {
-    case 'DatabaseTest':
-      return <DatabaseTestScreen />;
+    case 'Courses':
+      return <CoursesScreen />;
 
     case 'CourseRoadmap':
       return <CourseDetailsScreen />;
@@ -23,85 +31,36 @@ export const AppNavigator: React.FC = () => {
     case 'ModuleDetails':
       return <ModuleDetailsScreen />;
 
-    case 'Dashboard':
-      return (
-        <PlaceholderScreen
-          title="Grand Line Dashboard"
-          subtitle="Command Center"
-          icon="grid"
-          plannedPart="Part 6"
-          description="Central dashboard showing daily study goals, active course progress, recent achievements, and resume journey card."
-        />
-      );
-
     case 'Notes':
-      return (
-        <PlaceholderScreen
-          title="Pirate Log Notes"
-          subtitle="Study Journal"
-          icon="journal"
-          plannedPart="Part 6"
-          description="Rich offline note-taking space organized by course and module with tags, search, and Markdown support."
-        />
-      );
+      return <NotesScreen />;
+
+    case 'Completed':
+      return <CompletedScreen />;
+
+    case 'Remaining':
+      return <RemainingScreen />;
 
     case 'Statistics':
-      return (
-        <PlaceholderScreen
-          title="Log Pose Analytics"
-          subtitle="Charts & Metrics"
-          icon="pie-chart"
-          plannedPart="Part 6"
-          description="Visual completion velocity charts, time spent, mastery breakdown, and module completion streaks."
-        />
-      );
+      return <StatisticsScreen />;
 
     case 'Settings':
-      return (
-        <PlaceholderScreen
-          title="Crew Settings"
-          subtitle="Preferences & Data"
-          icon="settings"
-          plannedPart="Part 6"
-          description="Theme picker, SQLite database backup/export, and notification intervals."
-        />
-      );
+      return <SettingsScreen />;
 
     case 'PracticeLinks':
-      return (
-        <PlaceholderScreen
-          title="Practice Grounds"
-          subtitle="Bounty Challenges"
-          icon="link"
-          plannedPart="Part 6"
-          description="Curated links and problem sets for LeetCode, HackerRank, GitHub repos, and official documentation."
-        />
-      );
+      return <PracticeScreen />;
 
     case 'News':
-      return (
-        <PlaceholderScreen
-          title="World Economy News"
-          subtitle="Tech & AI Headlines"
-          icon="newspaper"
-          plannedPart="Part 6"
-          description="Curated tech headlines, AI updates, and market intelligence fetched when internet connectivity is active."
-        />
-      );
+      return <NewsScreen />;
 
     case 'Motivation':
-      return (
-        <PlaceholderScreen
-          title="Will of D. Quotes"
-          subtitle="Daily Motivation"
-          icon="flame"
-          plannedPart="Part 6"
-          description="Daily grit quotes, pirate king philosophies, and audio soundbites to inspire consistent learning discipline."
-        />
-      );
+      return <MotivationScreen />;
+
+    case 'DatabaseTest':
+      return <DatabaseTestScreen />;
 
     case 'Home':
+    case 'Dashboard':
     default:
-      return <HomeScreen />;
+      return <DashboardScreen />;
   }
 };
