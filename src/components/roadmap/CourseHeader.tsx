@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Course } from '../../models/Course';
+import { Module } from '../../models/Module';
 import { CourseIcon } from './CourseIcon';
 import { Colors } from '../../theme/colors';
 
@@ -8,17 +10,25 @@ interface CourseHeaderProps {
   course: Course;
   completedModulesCount: number;
   totalModulesCount: number;
+  activeModule?: Module | null;
+  onContinueJourney?: (module: Module) => void;
+  onViewCelebration?: () => void;
 }
 
 export const CourseHeader: React.FC<CourseHeaderProps> = ({
   course,
   completedModulesCount,
   totalModulesCount,
+  activeModule,
+  onContinueJourney,
+  onViewCelebration,
 }) => {
   const percentage =
     totalModulesCount > 0
       ? Math.round((completedModulesCount / totalModulesCount) * 100)
       : 0;
+
+  const isCourseFullyCompleted = course.is_completed || (totalModulesCount > 0 && completedModulesCount === totalModulesCount);
 
   const themeMeta = Colors.courseThemes[course.theme || course.id] || {
     primary: Colors.primary,
@@ -28,7 +38,6 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Top Banner with Icon & Island Number */}
       <View style={styles.topRow}>
         <CourseIcon
           courseId={course.id}
@@ -42,26 +51,24 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({
         </View>
       </View>
 
-      {/* Description */}
       {course.description ? (
         <Text style={styles.courseDescription}>{course.description}</Text>
       ) : null}
 
-      {/* Voyage Progress Card */}
+      {/* Voyage Progress Gauge */}
       <View style={styles.progressCard}>
         <View style={styles.progressMetaRow}>
           <Text style={styles.progressLabel}>VOYAGE PROGRESS</Text>
           <Text style={styles.percentageText}>{percentage}%</Text>
         </View>
 
-        {/* Progress Bar Track */}
         <View style={styles.progressBarTrack}>
           <View
             style={[
               styles.progressBarFill,
               {
                 width: `${Math.min(Math.max(percentage, 0), 100)}%`,
-                backgroundColor: percentage === 100 ? Colors.success : themeMeta.primary,
+                backgroundColor: isCourseFullyCompleted ? Colors.success : themeMeta.primary,
               },
             ]}
           />
@@ -71,7 +78,7 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({
           <Text style={styles.statsCount}>
             {completedModulesCount} of {totalModulesCount} Modules Conquered
           </Text>
-          {percentage === 100 ? (
+          {isCourseFullyCompleted ? (
             <Text style={styles.completeBadgeText}>🏆 COURSE COMPLETED</Text>
           ) : (
             <Text style={styles.remainingText}>
@@ -80,6 +87,54 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({
           )}
         </View>
       </View>
+
+      {/* CONTINUE YOUR JOURNEY / VIEW COMPLETION ACTION BANNER */}
+      {isCourseFullyCompleted ? (
+        <TouchableOpacity
+          style={styles.celebrationBanner}
+          onPress={onViewCelebration}
+          activeOpacity={0.85}
+        >
+          <View style={styles.celebrationBannerLeft}>
+            <View style={styles.celebrationTrophyCircle}>
+              <Ionicons name="trophy" size={20} color="#D97706" />
+            </View>
+            <View>
+              <Text style={styles.celebrationBannerTitle}>COURSE COMPLETED ✓</Text>
+              <Text style={styles.celebrationBannerSub}>Grand Line Summit Conquered!</Text>
+            </View>
+          </View>
+          <View style={styles.celebrationButtonPill}>
+            <Text style={styles.celebrationButtonText}>View Celebration 🎉</Text>
+          </View>
+        </TouchableOpacity>
+      ) : activeModule ? (
+        <TouchableOpacity
+          style={styles.continueJourneyCard}
+          onPress={() => onContinueJourney?.(activeModule)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.continueJourneyHeader}>
+            <View style={styles.continueBadge}>
+              <Ionicons name="compass" size={13} color={themeMeta.primary} />
+              <Text style={[styles.continueBadgeText, { color: themeMeta.primary }]}>
+                CONTINUE YOUR JOURNEY
+              </Text>
+            </View>
+            <Text style={styles.continueModuleNumber}>Module {activeModule.order}</Text>
+          </View>
+
+          <View style={styles.continueTitleRow}>
+            <Text style={styles.continueModuleTitle} numberOfLines={1}>
+              {activeModule.title}
+            </Text>
+            <View style={[styles.continueArrowBtn, { backgroundColor: themeMeta.primary }]}>
+              <Text style={styles.continueArrowBtnText}>CONTINUE</Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+            </View>
+          </View>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 };
@@ -91,7 +146,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 20,
+    paddingBottom: 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -126,14 +181,14 @@ const styles = StyleSheet.create({
   courseDescription: {
     fontSize: 13,
     color: '#475569',
-    marginTop: 8,
+    marginTop: 6,
     lineHeight: 18,
   },
   progressCard: {
-    marginTop: 14,
+    marginTop: 12,
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -155,14 +210,14 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   progressBarTrack: {
-    height: 10,
+    height: 8,
     backgroundColor: '#E2E8F0',
-    borderRadius: 5,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 4,
   },
   statsFooter: {
     flexDirection: 'row',
@@ -184,5 +239,116 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#94A3B8',
+  },
+  celebrationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    marginTop: 12,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  celebrationBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  celebrationTrophyCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  celebrationBannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#92400E',
+    letterSpacing: 0.5,
+  },
+  celebrationBannerSub: {
+    fontSize: 11,
+    color: '#B45309',
+  },
+  celebrationButtonPill: {
+    backgroundColor: '#D97706',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  celebrationButtonText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  continueJourneyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginTop: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  continueJourneyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  continueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  continueBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  continueModuleNumber: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  continueTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  continueModuleTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  continueArrowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  continueArrowBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
 });

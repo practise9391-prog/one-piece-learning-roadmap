@@ -4,6 +4,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
 import { CourseDetailsScreen } from '../screens/CourseDetailsScreen';
 import { ModuleDetailsScreen } from '../screens/ModuleDetailsScreen';
+import { CourseCompletionScreen } from '../screens/CourseCompletionScreen';
 import { PlaceholderScreen } from '../screens/placeholders/PlaceholderScreen';
 
 export const AppNavigator: React.FC = () => {
@@ -16,6 +17,9 @@ export const AppNavigator: React.FC = () => {
     case 'CourseRoadmap':
       return <CourseDetailsScreen />;
 
+    case 'CourseCompletion':
+      return <CourseCompletionScreen />;
+
     case 'ModuleDetails':
       return <ModuleDetailsScreen />;
 
@@ -25,7 +29,7 @@ export const AppNavigator: React.FC = () => {
           title="Grand Line Dashboard"
           subtitle="Command Center"
           icon="grid"
-          plannedPart="Part 3"
+          plannedPart="Part 6"
           description="Central dashboard showing daily study goals, active course progress, recent achievements, and resume journey card."
         />
       );
@@ -36,7 +40,7 @@ export const AppNavigator: React.FC = () => {
           title="Pirate Log Notes"
           subtitle="Study Journal"
           icon="journal"
-          plannedPart="Part 3"
+          plannedPart="Part 6"
           description="Rich offline note-taking space organized by course and module with tags, search, and Markdown support."
         />
       );
@@ -47,7 +51,7 @@ export const AppNavigator: React.FC = () => {
           title="Log Pose Analytics"
           subtitle="Charts & Metrics"
           icon="pie-chart"
-          plannedPart="Part 3"
+          plannedPart="Part 6"
           description="Visual completion velocity charts, time spent, mastery breakdown, and module completion streaks."
         />
       );
@@ -58,8 +62,8 @@ export const AppNavigator: React.FC = () => {
           title="Crew Settings"
           subtitle="Preferences & Data"
           icon="settings"
-          plannedPart="Part 4"
-          description="Theme picker (Straw Hat Red, Gear 5 White, Zoro Emerald), SQLite database backup/export, and notification intervals."
+          plannedPart="Part 6"
+          description="Theme picker, SQLite database backup/export, and notification intervals."
         />
       );
 
@@ -69,7 +73,7 @@ export const AppNavigator: React.FC = () => {
           title="Practice Grounds"
           subtitle="Bounty Challenges"
           icon="link"
-          plannedPart="Part 4"
+          plannedPart="Part 6"
           description="Curated links and problem sets for LeetCode, HackerRank, GitHub repos, and official documentation."
         />
       );
@@ -80,7 +84,7 @@ export const AppNavigator: React.FC = () => {
           title="World Economy News"
           subtitle="Tech & AI Headlines"
           icon="newspaper"
-          plannedPart="Part 5"
+          plannedPart="Part 6"
           description="Curated tech headlines, AI updates, and market intelligence fetched when internet connectivity is active."
         />
       );
@@ -91,7 +95,7 @@ export const AppNavigator: React.FC = () => {
           title="Will of D. Quotes"
           subtitle="Daily Motivation"
           icon="flame"
-          plannedPart="Part 5"
+          plannedPart="Part 6"
           description="Daily grit quotes, pirate king philosophies, and audio soundbites to inspire consistent learning discipline."
         />
       );

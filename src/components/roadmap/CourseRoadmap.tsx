@@ -6,7 +6,6 @@ import {
   ScrollView,
   useWindowDimensions,
   Animated,
-  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Course } from '../../models/Course';
@@ -20,17 +19,18 @@ interface CourseRoadmapProps {
   course: Course;
   modules: Module[];
   onSelectModule: (module: Module) => void;
+  onViewCelebration?: () => void;
 }
 
 export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
   course,
   modules,
   onSelectModule,
+  onViewCelebration,
 }) => {
   const { width: screenWidth } = useWindowDimensions();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Locked module warning toast state
   const [lockedToast, setLockedToast] = useState<{
     visible: boolean;
     moduleTitle: string;
@@ -42,14 +42,12 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
 
   const toastAnim = useRef(new Animated.Value(0)).current;
 
-  // Determine course theme colors
   const themeMeta = Colors.courseThemes[course.theme || course.id] || {
     primary: Colors.primary,
     secondary: Colors.secondary,
     bg: '#EFF6FF',
   };
 
-  // Determine state of each module sequentially
   const { moduleStates, completedCount, activeIndex } = useMemo(() => {
     let completed = 0;
     let firstAvailableIndex = -1;
@@ -79,21 +77,18 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
     };
   }, [modules]);
 
-  // Layout parameters for winding snake
+  const activeModule = modules[activeIndex] || null;
+
   const nodeWidth = 220;
   const nodeHeight = 110;
   const stepY = 160;
-  const startPaddingY = 90; // space after START island
+  const startPaddingY = 90;
 
-  // Calculate coordinates for all nodes
   const nodeCoordinates = useMemo(() => {
     const centerX = screenWidth / 2;
-    // Amplitude of snake curve (constrained to keep nodes comfortably on screen)
     const maxAmplitude = Math.min((screenWidth - nodeWidth) / 2 - 16, 65);
 
     return modules.map((_, index) => {
-      // Sinusoidal winding: index 0: center-left, index 1: center-right, index 2: center-left...
-      // Using sin with period of ~3 modules creates an organic S-path
       const angle = index * (Math.PI / 1.7);
       const offsetX = Math.sin(angle) * maxAmplitude;
       const x = centerX + offsetX;
@@ -106,7 +101,6 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
     });
   }, [modules, screenWidth]);
 
-  // Auto-scroll to active module on mount or when activeIndex updates
   useEffect(() => {
     if (modules.length > 0 && activeIndex >= 0 && nodeCoordinates[activeIndex]) {
       const targetY = nodeCoordinates[activeIndex].topLeft.y;
@@ -120,7 +114,6 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
     }
   }, [activeIndex, nodeCoordinates, modules.length]);
 
-  // Show locked toast banner
   const handlePressLocked = (module: Module, prevTitle?: string) => {
     setLockedToast({
       visible: true,
@@ -145,19 +138,20 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
     });
   };
 
-  const isCourseFullyCompleted = modules.length > 0 && completedCount === modules.length;
+  const isCourseFullyCompleted = course.is_completed || (modules.length > 0 && completedCount === modules.length);
   const totalContentHeight = startPaddingY + modules.length * stepY + 160;
 
   return (
     <View style={styles.container}>
-      {/* Course Header Banner */}
       <CourseHeader
         course={course}
         completedModulesCount={completedCount}
         totalModulesCount={modules.length}
+        activeModule={activeModule}
+        onContinueJourney={onSelectModule}
+        onViewCelebration={onViewCelebration}
       />
 
-      {/* Floating Locked Warning Toast */}
       {lockedToast.visible && (
         <Animated.View
           style={[
@@ -189,13 +183,11 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
         </Animated.View>
       )}
 
-      {/* Scrollable Snake Map */}
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={[styles.scrollContent, { height: totalContentHeight }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* START ISLAND LANDMARK */}
         <View style={[styles.startIsland, { left: screenWidth / 2 - 75 }]}>
           <View style={[styles.startBadge, { backgroundColor: themeMeta.primary }]}>
             <Ionicons name="boat" size={16} color="#FFFFFF" />
@@ -206,7 +198,6 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
           </View>
         </View>
 
-        {/* SVG ROAD CURVES */}
         {nodeCoordinates.map((coord, idx) => {
           if (idx === nodeCoordinates.length - 1) return null;
           const nextCoord = nodeCoordinates[idx + 1];
@@ -224,11 +215,11 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
           );
         })}
 
-        {/* ROADMAP NODES */}
         {modules.map((mod, idx) => {
           const coord = nodeCoordinates[idx];
           const state = moduleStates[idx];
           const prevTitle = idx > 0 ? modules[idx - 1].title : undefined;
+          const isFinal = idx === modules.length - 1;
 
           return (
             <View
@@ -247,6 +238,7 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
                 state={state}
                 previousModuleTitle={prevTitle}
                 themeColor={themeMeta.primary}
+                isFinalModule={isFinal}
                 onPress={onSelectModule}
                 onPressLocked={handlePressLocked}
               />
@@ -254,7 +246,6 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
           );
         })}
 
-        {/* FINAL DESTINATION ISLAND */}
         {modules.length > 0 && (
           <View
             style={[

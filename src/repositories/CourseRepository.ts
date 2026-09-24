@@ -3,9 +3,6 @@ import { Course, CourseRow, courseFromRow } from '../models/Course';
 import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export class CourseRepository {
-  /**
-   * Retrieves all courses ordered by order_index.
-   */
   async getAll(): Promise<Course[]> {
     const db = await dbManager.getDatabase();
     const rows = await db.getAllAsync<CourseRow>(
@@ -14,9 +11,6 @@ export class CourseRepository {
     return rows.map(courseFromRow);
   }
 
-  /**
-   * Retrieves a single course by ID.
-   */
   async getById(id: string): Promise<Course | null> {
     const db = await dbManager.getDatabase();
     const row = await db.getFirstAsync<CourseRow>(
@@ -26,9 +20,6 @@ export class CourseRepository {
     return row ? courseFromRow(row) : null;
   }
 
-  /**
-   * Inserts a new course.
-   */
   async create(course: {
     id: string;
     name: string;
@@ -45,8 +36,9 @@ export class CourseRepository {
       `INSERT INTO courses (
         id, name, description, icon, theme, order_index,
         total_modules, completed_modules, progress_percentage,
-        is_completed, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0.0, 0, ?, ?);`,
+        is_completed, started_at, completed_at, introduction_completed,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0.0, 0, NULL, NULL, 0, ?, ?);`,
       [
         course.id,
         course.name,
@@ -66,46 +58,54 @@ export class CourseRepository {
     return created;
   }
 
-  /**
-   * Updates course fields.
-   */
-  async update(id: string, updates: Partial<{
-    name: string;
-    description: string;
-    icon: string;
-    theme: string;
-    order: number;
-  }>): Promise<void> {
+  async startJourney(id: string): Promise<Course> {
     const db = await dbManager.getDatabase();
-    const existing = await this.getById(id);
-    if (!existing) {
-      throw new Error(`Course with id ${id} not found`);
-    }
-
-    const name = updates.name ?? existing.name;
-    const description = updates.description ?? existing.description;
-    const icon = updates.icon ?? existing.icon;
-    const theme = updates.theme ?? existing.theme;
-    const orderIndex = updates.order ?? existing.order;
     const now = getCurrentTimestamp();
 
     await db.runAsync(
-      `UPDATE courses 
-       SET name = ?, description = ?, icon = ?, theme = ?, order_index = ?, updated_at = ?
+      `UPDATE courses
+       SET started_at = COALESCE(started_at, ?),
+           introduction_completed = 1,
+           updated_at = ?
        WHERE id = ?;`,
-      [name, description, icon, theme, orderIndex, now, id]
+      [now, now, id]
     );
+
+    const updated = await this.getById(id);
+    if (!updated) {
+      throw new Error(`Course ${id} not found after startJourney`);
+    }
+    return updated;
   }
 
-  /**
-   * Updates computed progress stats for a course.
-   */
+  async markCompleted(id: string): Promise<Course> {
+    const db = await dbManager.getDatabase();
+    const now = getCurrentTimestamp();
+
+    await db.runAsync(
+      `UPDATE courses
+       SET is_completed = 1,
+           completed_at = COALESCE(completed_at, ?),
+           progress_percentage = 100.0,
+           updated_at = ?
+       WHERE id = ?;`,
+      [now, now, id]
+    );
+
+    const updated = await this.getById(id);
+    if (!updated) {
+      throw new Error(`Course ${id} not found after markCompleted`);
+    }
+    return updated;
+  }
+
   async updateProgressStats(
     id: string,
     totalModules: number,
     completedModules: number,
     progressPercentage: number,
-    isCompleted: boolean
+    isCompleted: boolean,
+    completedAt: string | null = null
   ): Promise<void> {
     const db = await dbManager.getDatabase();
     const now = getCurrentTimestamp();
@@ -116,6 +116,10 @@ export class CourseRepository {
            completed_modules = ?,
            progress_percentage = ?,
            is_completed = ?,
+           completed_at = CASE 
+             WHEN ? = 1 THEN COALESCE(completed_at, ?)
+             ELSE NULL
+           END,
            updated_at = ?
        WHERE id = ?;`,
       [
@@ -123,31 +127,53 @@ export class CourseRepository {
         completedModules,
         progressPercentage,
         isCompleted ? 1 : 0,
+        isCompleted ? 1 : 0,
+        completedAt || now,
         now,
         id,
       ]
     );
   }
 
-  /**
-   * Deletes a course by ID (cascades to modules, notes, progress via SQLite FKs).
-   */
+  async getCompletionStats(courseId: string): Promise<{
+    course: Course;
+    totalTopics: number;
+    completedTopics: number;
+    totalNotes: number;
+  }> {
+    const db = await dbManager.getDatabase();
+    const course = await this.getById(courseId);
+    if (!course) {
+      throw new Error(`Course ${courseId} not found`);
+    }
+
+    const topicsResult = await db.getFirstAsync<{ total: number; completed: number }>(
+      `SELECT 
+        COUNT(t.id) as total,
+        SUM(CASE WHEN t.is_completed = 1 THEN 1 ELSE 0 END) as completed
+       FROM topics t
+       JOIN modules m ON m.id = t.module_id
+       WHERE m.course_id = ?;`,
+      [courseId]
+    );
+
+    const notesResult = await db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM notes WHERE course_id = ?;',
+      [courseId]
+    );
+
+    return {
+      course,
+      totalTopics: topicsResult?.total || 0,
+      completedTopics: topicsResult?.completed || 0,
+      totalNotes: notesResult?.count || 0,
+    };
+  }
+
   async delete(id: string): Promise<void> {
     const db = await dbManager.getDatabase();
     await db.runAsync('DELETE FROM courses WHERE id = ?;', [id]);
   }
-
-  /**
-   * Counts total courses stored.
-   */
-  async count(): Promise<number> {
-    const db = await dbManager.getDatabase();
-    const result = await db.getFirstAsync<{ count: number }>(
-      'SELECT COUNT(*) as count FROM courses;'
-    );
-    return result?.count || 0;
-  }
 }
 
 export const courseRepository = new CourseRepository();
-

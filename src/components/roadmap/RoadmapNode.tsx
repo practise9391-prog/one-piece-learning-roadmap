@@ -19,6 +19,7 @@ export interface RoadmapNodeProps {
   state: NodeState;
   previousModuleTitle?: string;
   themeColor?: string;
+  isFinalModule?: boolean;
   onPress: (module: Module) => void;
   onPressLocked?: (module: Module, prevTitle?: string) => void;
 }
@@ -29,6 +30,7 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
   state,
   previousModuleTitle,
   themeColor = Colors.primary,
+  isFinalModule = false,
   onPress,
   onPressLocked,
 }) => {
@@ -41,7 +43,7 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
         Animated.sequence([
           Animated.parallel([
             Animated.timing(pulseAnim, {
-              toValue: 1.05,
+              toValue: isFinalModule ? 1.08 : 1.05,
               duration: 1200,
               easing: Easing.inOut(Easing.ease),
               useNativeDriver: true,
@@ -75,7 +77,7 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
       pulseAnim.setValue(1);
       glowAnim.setValue(0.4);
     }
-  }, [state, pulseAnim, glowAnim]);
+  }, [state, isFinalModule, pulseAnim, glowAnim]);
 
   const handlePress = () => {
     if (state === 'locked') {
@@ -86,8 +88,6 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
   };
 
   const formattedNumber = String(module.order || index + 1).padStart(2, '0');
-
-  // Node styling based on state
   const isLocked = state === 'locked';
   const isAvailable = state === 'available';
   const isCompleted = state === 'completed';
@@ -105,44 +105,37 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
         style={[
           styles.nodeCard,
           isCompleted && styles.nodeCardCompleted,
-          isAvailable && [styles.nodeCardAvailable, { borderColor: themeColor }],
+          isAvailable && [styles.nodeCardAvailable, { borderColor: isFinalModule ? '#F59E0B' : themeColor }],
           isLocked && styles.nodeCardLocked,
+          isFinalModule && styles.finalNodeCard,
         ]}
       >
-        {/* Available Pulse Beacon Glow */}
         {isAvailable && (
           <Animated.View
             style={[
               styles.availableBeacon,
               {
-                borderColor: themeColor,
+                borderColor: isFinalModule ? '#F59E0B' : themeColor,
                 opacity: glowAnim,
               },
             ]}
           />
         )}
 
-        {/* Top Header Row: Badge & Status Icon */}
         <View style={styles.topRow}>
           <View
             style={[
               styles.numberBadge,
               isCompleted && styles.numberBadgeCompleted,
-              isAvailable && { backgroundColor: themeColor },
+              isAvailable && { backgroundColor: isFinalModule ? '#D97706' : themeColor },
               isLocked && styles.numberBadgeLocked,
             ]}
           >
-            <Text
-              style={[
-                styles.numberText,
-                isLocked && styles.numberTextLocked,
-              ]}
-            >
+            <Text style={[styles.numberText, isLocked && styles.numberTextLocked]}>
               {formattedNumber}
             </Text>
           </View>
 
-          {/* Status Crest */}
           <View style={styles.statusCrest}>
             {isCompleted && (
               <View style={styles.completedCrest}>
@@ -150,44 +143,72 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
               </View>
             )}
             {isAvailable && (
-              <View style={[styles.availableCrest, { backgroundColor: `${themeColor}20` }]}>
-                <Ionicons name="compass" size={20} color={themeColor} />
+              <View
+                style={[
+                  styles.availableCrest,
+                  { backgroundColor: isFinalModule ? '#FEF3C7' : `${themeColor}20` },
+                ]}
+              >
+                <Ionicons
+                  name={isFinalModule ? 'trophy' : 'compass'}
+                  size={20}
+                  color={isFinalModule ? '#D97706' : themeColor}
+                />
               </View>
             )}
             {isLocked && (
               <View style={styles.lockedCrest}>
-                <Ionicons name="lock-closed" size={18} color="#94A3B8" />
+                <Ionicons
+                  name={isFinalModule ? 'lock-closed' : 'lock-closed'}
+                  size={18}
+                  color="#94A3B8"
+                />
               </View>
             )}
           </View>
         </View>
 
-        {/* Module Title */}
         <Text
           style={[
             styles.titleText,
             isCompleted && styles.titleCompleted,
             isLocked && styles.titleLocked,
+            isFinalModule && styles.finalTitle,
           ]}
           numberOfLines={2}
         >
           {module.title}
         </Text>
 
-        {/* Bottom Metadata: Island Progress / Topics */}
         <View style={styles.bottomRow}>
           {isCompleted && (
             <View style={styles.tagCompleted}>
               <Ionicons name="shield-checkmark" size={12} color={Colors.success} />
-              <Text style={styles.tagCompletedText}>ISLAND CONQUERED</Text>
+              <Text style={styles.tagCompletedText}>
+                {isFinalModule ? 'SUMMIT CONQUERED' : 'ISLAND CONQUERED'}
+              </Text>
             </View>
           )}
 
           {isAvailable && (
-            <View style={[styles.tagAvailable, { backgroundColor: `${themeColor}15` }]}>
-              <Ionicons name="flag" size={12} color={themeColor} />
-              <Text style={[styles.tagAvailableText, { color: themeColor }]}>
-                CURRENT ADVENTURE
+            <View
+              style={[
+                styles.tagAvailable,
+                { backgroundColor: isFinalModule ? '#FEF3C7' : `${themeColor}15` },
+              ]}
+            >
+              <Ionicons
+                name={isFinalModule ? 'star' : 'flag'}
+                size={12}
+                color={isFinalModule ? '#D97706' : themeColor}
+              />
+              <Text
+                style={[
+                  styles.tagAvailableText,
+                  { color: isFinalModule ? '#B45309' : themeColor },
+                ]}
+              >
+                {isFinalModule ? 'FINAL SUMMIT' : 'CURRENT ADVENTURE'}
               </Text>
             </View>
           )}
@@ -195,11 +216,12 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
           {isLocked && (
             <View style={styles.tagLocked}>
               <Ionicons name="lock-closed" size={11} color="#94A3B8" />
-              <Text style={styles.tagLockedText}>LOCKED</Text>
+              <Text style={styles.tagLockedText}>
+                {isFinalModule ? 'SUMMIT LOCKED' : 'LOCKED'}
+              </Text>
             </View>
           )}
 
-          {/* Topic Count pill if available */}
           {module.topic_count !== undefined && module.topic_count > 0 && !isLocked && (
             <Text style={styles.topicsCount}>
               {module.completed_topic_count || 0}/{module.topic_count} topics
@@ -230,6 +252,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+  },
+  finalNodeCard: {
+    borderColor: '#FDE68A',
+    borderWidth: 2.5,
   },
   nodeCardCompleted: {
     borderColor: '#10B981',
@@ -306,6 +332,9 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     lineHeight: 20,
     marginBottom: 8,
+  },
+  finalTitle: {
+    fontWeight: '800',
   },
   titleCompleted: {
     color: '#065F46',

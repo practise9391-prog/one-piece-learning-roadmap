@@ -50,6 +50,7 @@ export const ModuleDetailsScreen: React.FC = () => {
   const [module, setModule] = useState<Module | null>(null);
   const [previousModule, setPreviousModule] = useState<Module | null>(null);
   const [nextModule, setNextModule] = useState<Module | null>(null);
+  const [isFinalModule, setIsFinalModule] = useState<boolean>(false);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopicIndex, setSelectedTopicIndex] = useState<number>(0);
   const [isLocked, setIsLocked] = useState<boolean>(false);
@@ -81,6 +82,7 @@ export const ModuleDetailsScreen: React.FC = () => {
 
         const nextMod = currentIndex < allMods.length - 1 ? allMods[currentIndex + 1] : null;
         setNextModule(nextMod);
+        setIsFinalModule(currentIndex === allMods.length - 1);
 
         const locked = prevMod !== null && !prevMod.is_completed;
         setIsLocked(locked);
@@ -217,7 +219,9 @@ export const ModuleDetailsScreen: React.FC = () => {
 
   const handleProceedToNextModule = () => {
     setCelebrationModalVisible(false);
-    if (nextModule) {
+    if (isCourseFullyCompleted) {
+      navigate('CourseCompletion', { courseId });
+    } else if (nextModule) {
       navigate('ModuleDetails', { courseId, moduleId: nextModule.id });
     } else {
       goBack();
@@ -226,7 +230,11 @@ export const ModuleDetailsScreen: React.FC = () => {
 
   const handleDismissCelebration = () => {
     setCelebrationModalVisible(false);
-    goBack();
+    if (isCourseFullyCompleted) {
+      navigate('CourseCompletion', { courseId });
+    } else {
+      goBack();
+    }
   };
 
   if (loading && !module) {
@@ -321,6 +329,7 @@ export const ModuleDetailsScreen: React.FC = () => {
             styles.moduleHeroCard,
             module.is_completed && styles.moduleHeroCardCompleted,
             isLocked && styles.moduleHeroCardLocked,
+            isFinalModule && styles.finalHeroCard,
           ]}
         >
           <View style={styles.heroTopRow}>
@@ -329,9 +338,12 @@ export const ModuleDetailsScreen: React.FC = () => {
                 styles.moduleBadge,
                 module.is_completed && styles.moduleBadgeCompleted,
                 isLocked && styles.moduleBadgeLocked,
+                isFinalModule && styles.finalBadge,
               ]}
             >
-              <Text style={styles.moduleBadgeText}>MODULE {module.order}</Text>
+              <Text style={styles.moduleBadgeText}>
+                {isFinalModule ? `FINAL MODULE ${module.order}` : `MODULE ${module.order}`}
+              </Text>
             </View>
 
             {moduleStatus === 'COMPLETED' && (
@@ -348,8 +360,10 @@ export const ModuleDetailsScreen: React.FC = () => {
             )}
             {moduleStatus === 'AVAILABLE' && (
               <View style={styles.statusPillAvailable}>
-                <Ionicons name="compass" size={14} color={Colors.primary} />
-                <Text style={styles.statusPillAvailableText}>AVAILABLE</Text>
+                <Ionicons name="compass" size={14} color={isFinalModule ? '#D97706' : Colors.primary} />
+                <Text style={[styles.statusPillAvailableText, isFinalModule && { color: '#B45309' }]}>
+                  {isFinalModule ? 'FINAL SUMMIT' : 'AVAILABLE'}
+                </Text>
               </View>
             )}
             {moduleStatus === 'LOCKED' && (
@@ -386,7 +400,7 @@ export const ModuleDetailsScreen: React.FC = () => {
             topics={topics}
             currentIndex={selectedTopicIndex}
             onSelectIndex={handleSelectTopicIndex}
-            themeColor={Colors.primary}
+            themeColor={isFinalModule ? '#D97706' : Colors.primary}
           />
         )}
 
@@ -440,6 +454,7 @@ export const ModuleDetailsScreen: React.FC = () => {
             styles.completeModuleBtn,
             module.is_completed && styles.completeModuleBtnCompleted,
             isLocked && styles.completeModuleBtnLocked,
+            isFinalModule && !module.is_completed && !isLocked && styles.finalCompleteBtn,
           ]}
           onPress={handlePressCompleteModule}
           disabled={actionLoading || isLocked}
@@ -458,6 +473,8 @@ export const ModuleDetailsScreen: React.FC = () => {
                     ? 'refresh-circle'
                     : isLocked
                     ? 'lock-closed'
+                    : isFinalModule
+                    ? 'trophy'
                     : 'checkmark-circle'
                 }
                 size={22}
@@ -480,6 +497,8 @@ export const ModuleDetailsScreen: React.FC = () => {
                   ? 'Mark Module Incomplete'
                   : isLocked
                   ? 'Island Locked (Complete Previous First)'
+                  : isFinalModule
+                  ? '🏆 Complete Final Module & Claim Victory'
                   : '✓ Complete Module'}
               </Text>
             </>
@@ -593,6 +612,10 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 12,
   },
+  finalHeroCard: {
+    borderColor: '#FDE68A',
+    borderWidth: 2,
+  },
   moduleHeroCardCompleted: {
     borderColor: '#BBF7D0',
     backgroundColor: '#F0FDF4',
@@ -613,6 +636,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: Colors.primary,
+  },
+  finalBadge: {
+    backgroundColor: '#D97706',
   },
   moduleBadgeCompleted: {
     backgroundColor: '#10B981',
@@ -780,6 +806,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
+  },
+  finalCompleteBtn: {
+    backgroundColor: '#D97706',
+    shadowColor: '#F59E0B',
   },
   completeModuleBtnCompleted: {
     backgroundColor: '#F1F5F9',

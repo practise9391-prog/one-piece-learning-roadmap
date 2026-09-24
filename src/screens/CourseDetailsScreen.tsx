@@ -7,8 +7,10 @@ import {
 } from 'react-native';
 import { Header } from '../components/Header';
 import { CourseRoadmap } from '../components/roadmap';
+import { CourseWelcomeView } from '../components/welcome';
 import { useAppNavigation } from '../navigation/NavigationContext';
 import { roadmapService } from '../services/RoadmapService';
+import { courseRepository } from '../repositories/CourseRepository';
 import { Course } from '../models/Course';
 import { Module } from '../models/Module';
 import { Colors } from '../theme/colors';
@@ -20,6 +22,7 @@ export const CourseDetailsScreen: React.FC = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isStartingJourney, setIsStartingJourney] = useState<boolean>(false);
 
   const loadCourseData = useCallback(async () => {
     try {
@@ -42,6 +45,23 @@ export const CourseDetailsScreen: React.FC = () => {
 
   const handleSelectModule = (mod: Module) => {
     navigate('ModuleDetails', { courseId, moduleId: mod.id });
+  };
+
+  const handleStartJourney = async () => {
+    if (!course) return;
+    try {
+      setIsStartingJourney(true);
+      const updated = await courseRepository.startJourney(course.id);
+      setCourse(updated);
+    } catch (err) {
+      console.error('Failed to start journey in SQLite:', err);
+    } finally {
+      setIsStartingJourney(false);
+    }
+  };
+
+  const handleViewCelebration = () => {
+    navigate('CourseCompletion', { courseId });
   };
 
   if (loading && !course) {
@@ -67,6 +87,36 @@ export const CourseDetailsScreen: React.FC = () => {
     );
   }
 
+  // 1. First-time vs Returning User Check:
+  // If not started yet and introduction not completed, show Welcome Experience
+  const isFirstTime = !course.started_at && !course.introduction_completed && course.completed_modules === 0;
+
+  if (isFirstTime) {
+    return (
+      <View style={styles.container}>
+        <Header
+          title={course.name}
+          subtitle="New Territory Discovered"
+          showBack
+          onBackPress={goBack}
+        />
+        {isStartingJourney ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingText}>Setting Sail on the Grand Line...</Text>
+          </View>
+        ) : (
+          <CourseWelcomeView
+            course={course}
+            onStartJourney={handleStartJourney}
+            onSkip={handleStartJourney}
+          />
+        )}
+      </View>
+    );
+  }
+
+  // 2. Returning User: Show Roadmap directly
   return (
     <View style={styles.container}>
       <Header
@@ -79,6 +129,7 @@ export const CourseDetailsScreen: React.FC = () => {
         course={course}
         modules={modules}
         onSelectModule={handleSelectModule}
+        onViewCelebration={handleViewCelebration}
       />
     </View>
   );

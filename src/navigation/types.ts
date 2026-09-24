@@ -3,6 +3,7 @@ export type RootScreen =
   | 'DatabaseTest'
   | 'Dashboard'
   | 'CourseRoadmap'
+  | 'CourseCompletion'
   | 'ModuleDetails'
   | 'Notes'
   | 'Statistics'
@@ -26,4 +27,3 @@ export interface NavigationContextValue {
   navigate: (screen: RootScreen, params?: Record<string, any>) => void;
   goBack: () => void;
 }
-
