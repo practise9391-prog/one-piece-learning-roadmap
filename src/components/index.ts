@@ -6,5 +6,6 @@ export * from './ActionButton';
 export * from './roadmap';
 export * from './learning';
 export * from './welcome';
-export * from './common/CodeBlock';
 export * from './navigation';
+export * from './statistics';
+export * from './common/CodeBlock';

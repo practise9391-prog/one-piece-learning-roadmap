@@ -1,5 +1,6 @@
 import { dbManager } from '../database/DatabaseManager';
 import { Note, NoteRow, noteFromRow } from '../models/Note';
+import { activityRepository } from './ActivityRepository';
 import { getCurrentTimestamp } from '../utils/dateUtils';
 import { generateId } from '../utils/idGenerator';
 
@@ -43,15 +44,26 @@ export class NoteRepository {
     const existing = await this.getModuleNote(courseId, moduleId);
     if (existing) {
       await this.update(existing.id, text);
+      activityRepository.recordActivity({
+        courseId,
+        moduleId,
+        activityType: 'NOTE_UPDATED',
+      }).catch(() => {});
       const updated = await this.getById(existing.id);
       return updated!;
     } else {
-      return await this.create({
+      const created = await this.create({
         id: generateId('note'),
         course_id: courseId,
         module_id: moduleId,
         note_text: text,
       });
+      activityRepository.recordActivity({
+        courseId,
+        moduleId,
+        activityType: 'NOTE_CREATED',
+      }).catch(() => {});
+      return created;
     }
   }
 

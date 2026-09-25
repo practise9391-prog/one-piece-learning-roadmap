@@ -3,6 +3,7 @@ import { courseRepository } from '../repositories/CourseRepository';
 import { moduleRepository } from '../repositories/ModuleRepository';
 import { topicRepository } from '../repositories/TopicRepository';
 import { progressRepository } from '../repositories/ProgressRepository';
+import { activityRepository } from '../repositories/ActivityRepository';
 import { Course } from '../models/Course';
 import { Module } from '../models/Module';
 import { Topic } from '../models/Topic';
@@ -45,6 +46,13 @@ export class ProgressService {
         isCourseCompleted
       );
     });
+
+    // Record activity
+    activityRepository.recordActivity({
+      courseId,
+      moduleId,
+      activityType: 'MODULE_COMPLETED',
+    }).catch(() => {});
 
     const updatedCourse = await courseRepository.getById(courseId);
     if (!updatedCourse) {
@@ -115,13 +123,15 @@ export class ProgressService {
     const nextState = !currentTopic.is_completed;
     const completedAt = nextState ? now : null;
 
+    let isModuleComplete = false;
+
     await db.withTransactionAsync(async () => {
       // 1. Update topic
       await topicRepository.setCompletionStatus(topicId, nextState, completedAt);
 
       // 2. Check if all topics in this module are now completed
       const topicCounts = await topicRepository.countByModule(moduleId);
-      const isModuleComplete =
+      isModuleComplete =
         topicCounts.total > 0 && topicCounts.completed === topicCounts.total;
 
       await moduleRepository.setCompletionStatus(
@@ -143,16 +153,34 @@ export class ProgressService {
       const total = moduleCounts.total;
       const completed = moduleCounts.completed;
       const percentage = total > 0 ? Math.round((completed / total) * 1000) / 10 : 0.0;
-      const isCourseCompleted = total > 0 && completed === total;
+      const isCourseComplete = total > 0 && completed === total;
 
       await courseRepository.updateProgressStats(
         courseId,
         total,
         completed,
         percentage,
-        isCourseCompleted
+        isCourseComplete
       );
     });
+
+    // Record activity if marked complete
+    if (nextState) {
+      activityRepository.recordActivity({
+        courseId,
+        moduleId,
+        topicId,
+        activityType: 'TOPIC_COMPLETED',
+      }).catch(() => {});
+
+      if (isModuleComplete) {
+        activityRepository.recordActivity({
+          courseId,
+          moduleId,
+          activityType: 'MODULE_COMPLETED',
+        }).catch(() => {});
+      }
+    }
 
     const [updatedTopic, updatedModule, updatedCourse] = await Promise.all([
       topicRepository.getById(topicId),
@@ -160,33 +188,29 @@ export class ProgressService {
       courseRepository.getById(courseId),
     ]);
 
-    if (!updatedTopic || !updatedModule || !updatedCourse) {
-      throw new Error('Failed to retrieve updated records after topic toggle');
-    }
-
     return {
-      topic: updatedTopic,
-      module: updatedModule,
-      course: updatedCourse,
+      topic: updatedTopic!,
+      module: updatedModule!,
+      course: updatedCourse!,
     };
   }
 
   /**
-   * Recalculates stats for a course (e.g. after adding or deleting modules).
+   * Recalculates course module counts and percentage after structure modifications.
    */
   async recalculateCourse(courseId: string): Promise<Course> {
     const counts = await moduleRepository.countByCourse(courseId);
     const total = counts.total;
     const completed = counts.completed;
     const percentage = total > 0 ? Math.round((completed / total) * 1000) / 10 : 0.0;
-    const isCourseCompleted = total > 0 && completed === total;
+    const isCompleted = total > 0 && completed === total;
 
     await courseRepository.updateProgressStats(
       courseId,
       total,
       completed,
       percentage,
-      isCourseCompleted
+      isCompleted
     );
 
     const updated = await courseRepository.getById(courseId);

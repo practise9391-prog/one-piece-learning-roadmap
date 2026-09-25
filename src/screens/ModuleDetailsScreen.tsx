@@ -26,6 +26,7 @@ import { progressService } from '../services/ProgressService';
 import { topicContentService } from '../services/TopicContentService';
 import { topicRepository } from '../repositories/TopicRepository';
 import { moduleRepository } from '../repositories/ModuleRepository';
+import { activityRepository } from '../repositories/ActivityRepository';
 import { Course } from '../models/Course';
 import { Module } from '../models/Module';
 import { Topic } from '../models/Topic';
@@ -102,6 +103,14 @@ export const ModuleDetailsScreen: React.FC = () => {
         }
       } else {
         setSelectedTopicIndex(0);
+      }
+
+      if (moduleId) {
+        activityRepository.recordActivity({
+          courseId,
+          moduleId,
+          activityType: 'MODULE_OPENED',
+        }).catch(() => {});
       }
     } catch (err) {
       console.error('Failed to load module learning data from SQLite:', err);

@@ -3,6 +3,7 @@ import { v1_initial_schema } from './v1_initial_schema';
 import { v2_add_topics_and_seed_roadmaps } from './v2_add_topics_and_seed_roadmaps';
 import { v3_module_learning_enhancements } from './v3_module_learning_enhancements';
 import { v4_course_journey_and_completion } from './v4_course_journey_and_completion';
+import { v5_learning_activity } from './v5_learning_activity';
 
 export interface Migration {
   version: number;
@@ -15,6 +16,7 @@ export const MIGRATIONS: Migration[] = [
   v2_add_topics_and_seed_roadmaps,
   v3_module_learning_enhancements,
   v4_course_journey_and_completion,
+  v5_learning_activity,
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
