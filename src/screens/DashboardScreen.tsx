@@ -18,6 +18,9 @@ import { dashboardService, OverallProgressStats, CurrentLearningItem } from '../
 import { Course } from '../models/Course';
 import { newsRepository } from '../repositories/NewsRepository';
 import { NewsArticle, formatRelativeTime } from '../models/News';
+import { motivationRepository } from '../repositories/MotivationRepository';
+import { activityRepository, StreakMetrics } from '../repositories/ActivityRepository';
+import { MotivationEntry, DailyGoal, Achievement } from '../models/Motivation';
 import { Colors } from '../theme/colors';
 
 export const DashboardScreen: React.FC = () => {
@@ -27,21 +30,45 @@ export const DashboardScreen: React.FC = () => {
   const [currentLearning, setCurrentLearning] = useState<CurrentLearningItem | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [recentNews, setRecentNews] = useState<NewsArticle[]>([]);
+  const [dailyMotivation, setDailyMotivation] = useState<MotivationEntry | null>(null);
+  const [dailyGoals, setDailyGoals] = useState<DailyGoal[]>([]);
+  const [streakMetrics, setStreakMetrics] = useState<StreakMetrics | null>(null);
+  const [latestAchievement, setLatestAchievement] = useState<Achievement | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const loadDashboardData = useCallback(async () => {
     try {
-      const [fetchedStats, fetchedCurrent, fetchedCourses, fetchedNews] = await Promise.all([
+      const [
+        fetchedStats,
+        fetchedCurrent,
+        fetchedCourses,
+        fetchedNews,
+        fetchedMotivation,
+        fetchedGoals,
+        fetchedStreak,
+        fetchedAch,
+      ] = await Promise.all([
         dashboardService.getOverallStats(),
         dashboardService.getCurrentLearningItem(),
         roadmapService.getCourses(),
         newsRepository.getRecentPreview(3).catch(() => []),
+        motivationRepository.getTodayMotivation().catch(() => null),
+        motivationRepository.getTodayGoals().catch(() => []),
+        activityRepository.getStreakMetrics().catch(() => null),
+        motivationRepository.getAchievements().catch(() => []),
       ]);
       setStats(fetchedStats);
       setCurrentLearning(fetchedCurrent);
       setCourses(fetchedCourses);
       setRecentNews(fetchedNews);
+      setDailyMotivation(fetchedMotivation);
+      setDailyGoals(fetchedGoals);
+      setStreakMetrics(fetchedStreak);
+      const unlockedAch = fetchedAch.filter((a) => a.is_unlocked);
+      if (unlockedAch.length > 0) {
+        setLatestAchievement(unlockedAch[0]);
+      }
     } catch (err) {
       console.error('Failed to load dashboard data from SQLite:', err);
     } finally {
@@ -144,6 +171,82 @@ export const DashboardScreen: React.FC = () => {
                 {currentLearning ? 'Continue Learning' : 'Explore Courses'}
               </Text>
               <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={styles.btnIcon} />
+            </TouchableOpacity>
+          </View>
+
+          {/* DAILY MOTIVATION QUOTE CARD */}
+          {dailyMotivation && (
+            <View style={styles.quoteCard}>
+              <View style={styles.quoteHeaderRow}>
+                <View style={styles.quotePill}>
+                  <Ionicons name="sparkles" size={12} color="#D97706" />
+                  <Text style={styles.quotePillText}>DAILY MOTIVATION</Text>
+                </View>
+                <Text style={styles.quoteCategoryText}>{dailyMotivation.category}</Text>
+              </View>
+              <Text style={styles.quoteMessage}>"{dailyMotivation.message}"</Text>
+              <Text style={styles.quoteAuthor}>— {dailyMotivation.author}</Text>
+            </View>
+          )}
+
+          {/* TODAY'S JOURNEY & DAILY GOALS SECTION */}
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderTitleGroup}>
+              <Ionicons name="flame" size={18} color="#D97706" />
+              <Text style={styles.sectionHeaderTitle}>TODAY'S JOURNEY</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigate('Motivation')} activeOpacity={0.7}>
+              <Text style={styles.viewAllText}>Goals & Routine →</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.todayJourneyCard}>
+            <View style={styles.todayTopRow}>
+              <View style={styles.todayStreakBadge}>
+                <Ionicons name="flame" size={16} color="#D97706" />
+                <Text style={styles.todayStreakText}>
+                  {streakMetrics ? streakMetrics.currentStreak : 0} Day Streak
+                </Text>
+              </View>
+
+              <Text style={styles.todayGoalsTally}>
+                {dailyGoals.filter((g) => g.is_completed).length} / {dailyGoals.length || 4} Goals Complete
+              </Text>
+            </View>
+
+            <View style={styles.todayProgressTrack}>
+              <View
+                style={[
+                  styles.todayProgressFill,
+                  {
+                    width: `${
+                      dailyGoals.length > 0
+                        ? Math.round(
+                            (dailyGoals.filter((g) => g.is_completed).length / dailyGoals.length) * 100
+                          )
+                        : 0
+                    }%`,
+                  },
+                ]}
+              />
+            </View>
+
+            {latestAchievement && (
+              <View style={styles.todayAchievementRow}>
+                <Text style={{ fontSize: 16 }}>{latestAchievement.icon}</Text>
+                <Text style={styles.todayAchText} numberOfLines={1}>
+                  Achievement: <Text style={{ fontWeight: '800' }}>{latestAchievement.title}</Text>
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.todayContinueBtn}
+              onPress={() => navigate('Motivation')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.todayContinueBtnText}>CONTINUE TODAY'S JOURNEY</Text>
+              <Ionicons name="arrow-forward" size={14} color="#0D1B2A" />
             </TouchableOpacity>
           </View>
 
@@ -821,6 +924,142 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  quoteCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  quoteHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  quotePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  quotePillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#B45309',
+    letterSpacing: 0.5,
+  },
+  quoteCategoryText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  quoteMessage: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#0F172A',
+    lineHeight: 20,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  quoteAuthor: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  todayJourneyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  todayTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  todayStreakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 5,
+  },
+  todayStreakText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  todayGoalsTally: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  todayProgressTrack: {
+    height: 7,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3.5,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  todayProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.secondary,
+    borderRadius: 3.5,
+  },
+  todayAchievementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    padding: 8,
+    borderRadius: 8,
+    gap: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  todayAchText: {
+    fontSize: 12,
+    color: '#15803D',
+    flex: 1,
+  },
+  todayContinueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.secondary,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  todayContinueBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0D1B2A',
+    letterSpacing: 0.5,
   },
   newsPreviewCard: {
     backgroundColor: '#FFFFFF',

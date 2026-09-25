@@ -15,7 +15,9 @@ import { PracticeCategoryScreen } from '../screens/practice/PracticeCategoryScre
 import { PracticeQuestionScreen } from '../screens/practice/PracticeQuestionScreen';
 import { NewsHomeScreen } from '../screens/news/NewsHomeScreen';
 import { NewsArticleScreen } from '../screens/news/NewsArticleScreen';
-import { MotivationScreen } from '../screens/MotivationScreen';
+import { MotivationHomeScreen } from '../screens/motivation/MotivationHomeScreen';
+import { DailyLearningScreen } from '../screens/motivation/DailyLearningScreen';
+import { AchievementsScreen } from '../screens/motivation/AchievementsScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
 
 export const AppNavigator: React.FC = () => {
@@ -65,7 +67,13 @@ export const AppNavigator: React.FC = () => {
       return <NewsArticleScreen />;
 
     case 'Motivation':
-      return <MotivationScreen />;
+      return <MotivationHomeScreen />;
+
+    case 'DailyLearning':
+      return <DailyLearningScreen />;
+
+    case 'Achievements':
+      return <AchievementsScreen />;
 
     case 'DatabaseTest':
       return <DatabaseTestScreen />;

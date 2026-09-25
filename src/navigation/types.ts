@@ -16,6 +16,8 @@ export type RootScreen =
   | 'News'
   | 'NewsArticle'
   | 'Motivation'
+  | 'DailyLearning'
+  | 'Achievements'
   | 'DatabaseTest';
 
 export interface NavigationState {

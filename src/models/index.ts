@@ -6,3 +6,4 @@ export * from './Note';
 export * from './UserProgress';
 export * from './Practice';
 export * from './News';
+export * from './Motivation';
