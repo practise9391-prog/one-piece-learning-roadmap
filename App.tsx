@@ -17,6 +17,13 @@ export default function App() {
       setDbError(null);
       await dbManager.getDatabase();
       setDbReady(true);
+
+      // Restore and verify notification schedules on launch
+      import('./src/services/NotificationService').then(({ notificationService }) => {
+        notificationService.rescheduleAllNotifications().catch((e) =>
+          console.warn('[App] Reschedule notifications on launch error:', e)
+        );
+      });
     } catch (err: any) {
       console.error('Database initialization failed:', err);
       setDbError(err?.message || 'Failed to initialize local SQLite database');

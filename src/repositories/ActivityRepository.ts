@@ -177,6 +177,19 @@ export class ActivityRepository {
     }
     return map;
   }
+
+  /**
+   * Retrieves all activities recorded for today.
+   */
+  async getTodayActivities(): Promise<LearningActivity[]> {
+    const db = await dbManager.getDatabase();
+    const todayStr = getLocalDateString();
+    const rows = await db.getAllAsync<LearningActivityRow>(
+      'SELECT * FROM learning_activity WHERE activity_date = ? ORDER BY created_at DESC;',
+      [todayStr]
+    );
+    return rows.map(activityFromRow);
+  }
 }
 
 export const activityRepository = new ActivityRepository();

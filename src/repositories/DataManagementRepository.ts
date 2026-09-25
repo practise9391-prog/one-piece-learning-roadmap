@@ -565,6 +565,31 @@ export class DataManagementRepository {
         await database.runAsync(`UPDATE goal_settings SET value = '5' WHERE key = 'practice_per_day';`);
         await database.runAsync(`UPDATE goal_settings SET value = '1' WHERE key = 'modules_per_day';`);
         await database.runAsync(`UPDATE goal_settings SET value = '5' WHERE key = 'weekly_days_target';`);
+
+        // Reset notification preferences and scheduled notifications
+        await database.runAsync(
+          `UPDATE notification_preferences SET
+            notifications_enabled = 1,
+            learning_reminder_enabled = 1,
+            learning_reminder_time = '19:00',
+            goal_reminder_enabled = 1,
+            goal_reminder_time = '20:30',
+            streak_reminder_enabled = 1,
+            streak_reminder_time = '21:00',
+            practice_reminder_enabled = 1,
+            practice_reminder_time = '18:30',
+            motivation_notification_enabled = 1,
+            motivation_notification_time = '08:00',
+            updated_at = ?
+          WHERE id = 'default';`,
+          [now]
+        );
+        await database.runAsync('DELETE FROM scheduled_notifications;');
+      });
+
+      // Cancel all active Expo scheduled notifications
+      import('../services/NotificationService').then(({ notificationService }) => {
+        notificationService.cancelAllNotifications().catch(() => {});
       });
 
       return {

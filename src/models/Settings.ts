@@ -69,7 +69,7 @@ export interface AppearancePreferences {
   reduced_motion: boolean;
 }
 
-export interface NotificationPreferences {
+export interface LegacyNotificationPreferences {
   daily_learning_reminder: boolean;
   streak_reminder: boolean;
   news_updates_reminder: boolean;

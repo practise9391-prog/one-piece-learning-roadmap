@@ -9,3 +9,4 @@ export * from './NewsRepository';
 export * from './MotivationRepository';
 export * from './SettingsRepository';
 export * from './DataManagementRepository';
+export * from './NotificationRepository';

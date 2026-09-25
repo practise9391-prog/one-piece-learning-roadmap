@@ -6,6 +6,7 @@ import { useAppNavigation } from '../../navigation/NavigationContext';
 import { useSettingsViewModel } from '../../hooks/useSettingsViewModel';
 import {
   SettingsSection,
+  SettingsRow,
   SettingsRadioGroup,
   SettingsSwitch,
   RadioOption,
@@ -138,36 +139,15 @@ export const AppearanceSettingsScreen: React.FC = () => {
           />
         </SettingsSection>
 
-        {/* Section 4: Notifications (Preparation) */}
-        <SettingsSection title="Device Notifications" icon="notifications-outline">
-          <SettingsSwitch
-            title="Daily Study Reminder"
-            subtitle="Morning dispatch at 09:00 AM (Infrastructure in preparation)"
+        {/* Section 4: Notifications Hub */}
+        <SettingsSection title="Learning Reminders & Alarms" icon="notifications-outline">
+          <SettingsRow
             icon="alarm-outline"
-            value={notificationPrefs?.daily_learning_reminder ?? false}
-            onValueChange={() => {}}
-            disabled={true}
-            disabledBadge="COMING SOON"
-          />
-
-          <SettingsSwitch
-            title="Streak Protection Reminder"
-            subtitle="Alert before midnight if daily goals remain incomplete"
-            icon="flame-outline"
-            value={notificationPrefs?.streak_reminder ?? false}
-            onValueChange={() => {}}
-            disabled={true}
-            disabledBadge="COMING SOON"
-          />
-
-          <SettingsSwitch
-            title="Weekly Tech News Digest"
-            subtitle="Curated developer and AI stories summary"
-            icon="newspaper-outline"
-            value={notificationPrefs?.news_updates_reminder ?? false}
-            onValueChange={() => {}}
-            disabled={true}
-            disabledBadge="COMING SOON"
+            title="Configure Local Notifications"
+            subtitle="Manage daily learning, goal, streak, and practice reminders"
+            badge="ACTIVE"
+            badgeColor="#10B981"
+            onPress={() => navigate('NotificationSettings')}
             isLast={true}
           />
         </SettingsSection>

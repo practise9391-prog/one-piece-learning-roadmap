@@ -13,7 +13,7 @@ import {
   NewsPreferencesSettings,
   MotivationPreferences,
   AppearancePreferences,
-  NotificationPreferences,
+  LegacyNotificationPreferences,
   SoundPreferences,
   DatabaseStatistics,
   BackupPayload,
@@ -34,7 +34,7 @@ export function useSettingsViewModel() {
   const [newsPrefs, setNewsPrefs] = useState<NewsPreferencesSettings | null>(null);
   const [motivationPrefs, setMotivationPrefs] = useState<MotivationPreferences | null>(null);
   const [appearancePrefs, setAppearancePrefs] = useState<AppearancePreferences | null>(null);
-  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
+  const [notificationPrefs, setNotificationPrefs] = useState<LegacyNotificationPreferences | null>(null);
   const [soundPrefs, setSoundPrefs] = useState<SoundPreferences | null>(null);
   const [dbStats, setDbStats] = useState<DatabaseStatistics | null>(null);
   const [newsCacheStats, setNewsCacheStats] = useState<{ storedArticles: number; estimatedBytes: number }>({
@@ -168,7 +168,7 @@ export function useSettingsViewModel() {
   };
 
   // --- Notification Preferences (Preparation) ---
-  const saveNotificationPreferences = async (prefs: Partial<NotificationPreferences>) => {
+  const saveNotificationPreferences = async (prefs: Partial<LegacyNotificationPreferences>) => {
     await settingsRepository.updateNotificationPreferences(prefs);
     setNotificationPrefs((prev) => (prev ? { ...prev, ...prefs } : null));
   };

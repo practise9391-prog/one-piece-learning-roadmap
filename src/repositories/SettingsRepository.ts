@@ -7,7 +7,7 @@ import {
   NewsPreferencesSettings,
   MotivationPreferences,
   AppearancePreferences,
-  NotificationPreferences,
+  LegacyNotificationPreferences,
   SoundPreferences,
 } from '../models/Settings';
 
@@ -340,7 +340,7 @@ export class SettingsRepository {
   }
 
   // --- NOTIFICATION PREFERENCES (PREPARATION) ---
-  async getNotificationPreferences(): Promise<NotificationPreferences> {
+  async getNotificationPreferences(): Promise<LegacyNotificationPreferences> {
     const dailyReminder = await this.getSetting('daily_learning_reminder', 'false');
     const streakReminder = await this.getSetting('streak_reminder', 'false');
     const newsReminder = await this.getSetting('news_updates_reminder', 'false');
@@ -352,7 +352,7 @@ export class SettingsRepository {
     };
   }
 
-  async updateNotificationPreferences(prefs: Partial<NotificationPreferences>): Promise<void> {
+  async updateNotificationPreferences(prefs: Partial<LegacyNotificationPreferences>): Promise<void> {
     if (prefs.daily_learning_reminder !== undefined) {
       await this.setSetting('daily_learning_reminder', prefs.daily_learning_reminder ? 'true' : 'false');
     }

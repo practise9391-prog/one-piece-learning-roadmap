@@ -25,7 +25,14 @@
     "plugins": [
       "expo-sqlite",
       "expo-font",
-      "expo-updates"
+      "expo-updates",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#E53935"
+        }
+      ]
     ],
     "extra": {
       "eas": {

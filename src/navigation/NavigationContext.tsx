@@ -38,6 +38,14 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
+  // Listen for notification taps (deep linking)
+  useEffect(() => {
+    import('../services/NotificationService').then(({ notificationService }) => {
+      const cleanup = notificationService.setupNotificationResponseListener(navigate);
+      return cleanup;
+    });
+  }, [navigate]);
+
   // Handle native Android hardware back button
   useEffect(() => {
     const onBackPress = () => {

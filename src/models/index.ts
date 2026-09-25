@@ -8,3 +8,4 @@ export * from './Practice';
 export * from './News';
 export * from './Motivation';
 export * from './Settings';
+export * from './Notification';

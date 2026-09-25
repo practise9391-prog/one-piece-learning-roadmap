@@ -17,6 +17,7 @@ import { PracticeSettingsScreen } from '../screens/settings/PracticeSettingsScre
 import { NewsSettingsScreen } from '../screens/settings/NewsSettingsScreen';
 import { MotivationSettingsScreen } from '../screens/settings/MotivationSettingsScreen';
 import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
+import { NotificationSettingsScreen } from '../screens/settings/NotificationSettingsScreen';
 import { DataManagementScreen } from '../screens/settings/DataManagementScreen';
 import { AboutScreen } from '../screens/settings/AboutScreen';
 import { PracticeHomeScreen } from '../screens/practice/PracticeHomeScreen';
@@ -80,6 +81,9 @@ export const AppNavigator: React.FC = () => {
 
     case 'AppearanceSettings':
       return <AppearanceSettingsScreen />;
+
+    case 'NotificationSettings':
+      return <NotificationSettingsScreen />;
 
     case 'DataManagement':
       return <DataManagementScreen />;

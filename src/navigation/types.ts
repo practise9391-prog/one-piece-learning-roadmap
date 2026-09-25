@@ -17,6 +17,7 @@ export type RootScreen =
   | 'NewsSettings'
   | 'MotivationSettings'
   | 'AppearanceSettings'
+  | 'NotificationSettings'
   | 'DataManagement'
   | 'About'
   | 'PracticeLinks'

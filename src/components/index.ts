@@ -12,4 +12,5 @@ export * from './practice';
 export * from './news';
 export * from './motivation';
 export * from './settings';
+export * from './notifications';
 export * from './common/CodeBlock';

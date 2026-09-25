@@ -161,7 +161,20 @@ export const SettingsScreen: React.FC = () => {
           />
         </SettingsSection>
 
-        {/* SECTION 7: DATA & STORAGE */}
+        {/* SECTION 7: NOTIFICATIONS */}
+        <SettingsSection title="Notifications & Reminders" icon="notifications-outline">
+          <SettingsRow
+            icon="alarm-outline"
+            title="Local Learning Reminders"
+            subtitle="Configure daily reminders, streak alerts, goals & practice"
+            badge="ACTIVE"
+            badgeColor="#10B981"
+            onPress={() => navigate('NotificationSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
+
+        {/* SECTION 8: DATA & STORAGE */}
         <SettingsSection title="Data Vault & Portability" icon="server-outline">
           <SettingsRow
             icon="cube-outline"
