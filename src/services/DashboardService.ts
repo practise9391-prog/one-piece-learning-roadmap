@@ -135,7 +135,22 @@ export class DashboardService {
         ORDER BY updated_at DESC 
         LIMIT 1;
       `);
-      if (!inProgressRow) return null;
+      if (!inProgressRow) {
+        // Fallback to default_course_id from app_settings
+        const defaultCourseSetting = await db.getFirstAsync<{ value: string }>(
+          "SELECT value FROM app_settings WHERE key = 'default_course_id';"
+        );
+        if (defaultCourseSetting?.value) {
+          const defaultRow = await db.getFirstAsync<CourseRow>(
+            'SELECT * FROM courses WHERE id = ?;',
+            [defaultCourseSetting.value]
+          );
+          if (defaultRow) {
+            return this.resolveCurrentModuleForCourse(defaultRow);
+          }
+        }
+        return null;
+      }
       return this.resolveCurrentModuleForCourse(inProgressRow);
     }
 

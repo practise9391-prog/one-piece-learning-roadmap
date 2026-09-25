@@ -10,6 +10,15 @@ import { CompletedScreen } from '../screens/CompletedScreen';
 import { RemainingScreen } from '../screens/RemainingScreen';
 import { StatisticsScreen } from '../screens/StatisticsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { ProfileSettingsScreen } from '../screens/settings/ProfileSettingsScreen';
+import { LearningPreferencesScreen } from '../screens/settings/LearningPreferencesScreen';
+import { DailyGoalSettingsScreen } from '../screens/settings/DailyGoalSettingsScreen';
+import { PracticeSettingsScreen } from '../screens/settings/PracticeSettingsScreen';
+import { NewsSettingsScreen } from '../screens/settings/NewsSettingsScreen';
+import { MotivationSettingsScreen } from '../screens/settings/MotivationSettingsScreen';
+import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
+import { DataManagementScreen } from '../screens/settings/DataManagementScreen';
+import { AboutScreen } from '../screens/settings/AboutScreen';
 import { PracticeHomeScreen } from '../screens/practice/PracticeHomeScreen';
 import { PracticeCategoryScreen } from '../screens/practice/PracticeCategoryScreen';
 import { PracticeQuestionScreen } from '../screens/practice/PracticeQuestionScreen';
@@ -50,6 +59,33 @@ export const AppNavigator: React.FC = () => {
 
     case 'Settings':
       return <SettingsScreen />;
+
+    case 'ProfileSettings':
+      return <ProfileSettingsScreen />;
+
+    case 'LearningPreferences':
+      return <LearningPreferencesScreen />;
+
+    case 'DailyGoalSettings':
+      return <DailyGoalSettingsScreen />;
+
+    case 'PracticeSettings':
+      return <PracticeSettingsScreen />;
+
+    case 'NewsSettings':
+      return <NewsSettingsScreen />;
+
+    case 'MotivationSettings':
+      return <MotivationSettingsScreen />;
+
+    case 'AppearanceSettings':
+      return <AppearanceSettingsScreen />;
+
+    case 'DataManagement':
+      return <DataManagementScreen />;
+
+    case 'About':
+      return <AboutScreen />;
 
     case 'PracticeLinks':
       return <PracticeHomeScreen />;

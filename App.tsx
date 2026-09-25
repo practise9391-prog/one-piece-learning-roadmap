@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProvider } from './src/navigation/NavigationContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { ThemeProvider } from './src/theme/ThemeContext';
 import { dbManager } from './src/database/DatabaseManager';
 import { Colors } from './src/theme/colors';
 
@@ -63,12 +64,14 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.appContainer}>
-      <StatusBar style="light" />
-      <NavigationProvider>
-        <AppNavigator />
-      </NavigationProvider>
-    </SafeAreaView>
+    <ThemeProvider>
+      <SafeAreaView style={styles.appContainer}>
+        <StatusBar style="light" />
+        <NavigationProvider>
+          <AppNavigator />
+        </NavigationProvider>
+      </SafeAreaView>
+    </ThemeProvider>
   );
 }
 

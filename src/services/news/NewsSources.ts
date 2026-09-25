@@ -140,13 +140,7 @@ export class TechnologyNewsSource implements NewsSource {
       });
 
       const results = await Promise.all(articlePromises);
-      const filtered: Partial<NewsArticle>[] = [];
-      for (const item of results) {
-        if (item) {
-          filtered.push(item);
-        }
-      }
-      return filtered;
+      return results.filter((item): item is NonNullable<typeof item> => item !== null);
     } catch {
       return [];
     }

@@ -5,148 +5,200 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppShell } from '../components/navigation/AppShell';
 import { useAppNavigation } from '../navigation/NavigationContext';
-import { Colors } from '../theme/colors';
+import { useSettingsViewModel } from '../hooks/useSettingsViewModel';
+import { SettingsSection, SettingsRow } from '../components/settings';
+import { AVATAR_OPTIONS } from '../models/Settings';
+import { useTheme } from '../theme/ThemeContext';
 
 export const SettingsScreen: React.FC = () => {
   const { navigate } = useAppNavigation();
+  const {
+    profile,
+    learningPrefs,
+    goalPrefs,
+    currentThemeId,
+    dbStats,
+  } = useSettingsViewModel();
+  const { theme } = useTheme();
+
+  const activeAvatarObj =
+    AVATAR_OPTIONS.find((a) => a.id === profile?.avatar_type) || AVATAR_OPTIONS[0];
+
+  // Theme name label
+  const themeLabels: Record<string, string> = {
+    ocean: 'Ocean Adventure',
+    dark: 'Dark Adventure',
+    light: 'Light Adventure',
+    system: 'System Default',
+  };
 
   return (
     <AppShell title="SETTINGS">
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section 1: Appearance */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>APPEARANCE</Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="moon-outline" size={20} color={Colors.primary} />
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>Theme</Text>
-                <Text style={styles.settingSub}>Dark Pirate Voyage (Active)</Text>
-              </View>
+        {/* Profile Card Banner */}
+        <TouchableOpacity
+          style={[
+            styles.profileBanner,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+          onPress={() => navigate('ProfileSettings')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.profileLeft}>
+            <View
+              style={[
+                styles.avatarCircle,
+                { backgroundColor: `${theme.colors.primary}18`, borderColor: theme.colors.secondary },
+              ]}
+            >
+              <Text style={styles.avatarEmoji}>{activeAvatarObj.symbol}</Text>
             </View>
-            <Ionicons name="checkmark-circle" size={20} color={Colors.secondary} />
-          </View>
-        </View>
-
-        {/* Section 2: Notifications */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="notifications-outline" size={20} color="#2563EB" />
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>Daily Study Reminders</Text>
-                <Text style={styles.settingSub}>Remind at 09:00 AM (Coming soon)</Text>
+            <View style={styles.profileDetails}>
+              <View style={styles.captainBadgeRow}>
+                <Text style={[styles.captainName, { color: theme.colors.textPrimary }]}>
+                  {profile?.display_name || 'Pavan'}
+                </Text>
+                <View style={[styles.captainRank, { backgroundColor: `${theme.colors.secondary}20` }]}>
+                  <Text style={[styles.captainRankText, { color: theme.colors.secondaryDark }]}>
+                    CAPTAIN
+                  </Text>
+                </View>
               </View>
-            </View>
-            <Switch value={false} disabled={true} />
-          </View>
-        </View>
-
-        {/* Section 3: Learning Goals */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>LEARNING</Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="flag-outline" size={20} color="#16A34A" />
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>Daily Module Goal</Text>
-                <Text style={styles.settingSub}>1 module per day</Text>
-              </View>
-            </View>
-            <Text style={styles.goalPill}>1 / Day</Text>
-          </View>
-        </View>
-
-        {/* Section 4: Data & Local Storage */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>DATA & STORAGE</Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="server-outline" size={20} color="#D97706" />
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>SQLite Vault Engine</Text>
-                <Text style={styles.settingSub}>onepiece_roadmap.db (Online)</Text>
-              </View>
-            </View>
-            <View style={styles.connectedBadge}>
-              <Text style={styles.connectedText}>Connected</Text>
+              <Text style={[styles.avatarTitle, { color: theme.colors.textSecondary }]}>
+                {activeAvatarObj.name} • Local Vault Profile
+              </Text>
             </View>
           </View>
+          <View style={styles.editProfileBtn}>
+            <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
+          </View>
+        </TouchableOpacity>
 
-          <View style={styles.divider} />
+        {/* SECTION 1: PROFILE */}
+        <SettingsSection title="Profile & Identity" icon="person-outline">
+          <SettingsRow
+            icon="finger-print-outline"
+            title="Edit Captain Profile"
+            subtitle="Change display name and nautical avatar crest"
+            onPress={() => navigate('ProfileSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
 
-          <TouchableOpacity
-            style={styles.settingActionRow}
-            activeOpacity={0.7}
+        {/* SECTION 2: LEARNING */}
+        <SettingsSection title="Learning & Roadmap" icon="school-outline">
+          <SettingsRow
+            icon="compass-outline"
+            title="Learning Preferences"
+            subtitle="Default course, auto-open modules, auto-scroll"
+            valueText={learningPrefs?.default_course_id?.toUpperCase()}
+            onPress={() => navigate('LearningPreferences')}
+          />
+
+          <SettingsRow
+            icon="flame-outline"
+            title="Daily Goals"
+            subtitle={`${goalPrefs?.topics_per_day ?? 2} topics • ${goalPrefs?.practice_per_day ?? 5} practice questions`}
+            badge={`${goalPrefs?.topics_per_day ?? 2}/Day`}
+            onPress={() => navigate('DailyGoalSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
+
+        {/* SECTION 3: PRACTICE */}
+        <SettingsSection title="Practice & Training Dojo" icon="code-slash-outline">
+          <SettingsRow
+            icon="flash-outline"
+            title="Practice Preferences"
+            subtitle="Difficulty filter, hints, detailed solutions, auto-advance"
+            onPress={() => navigate('PracticeSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
+
+        {/* SECTION 4: NEWS */}
+        <SettingsSection title="Dispatches & News Feeds" icon="newspaper-outline">
+          <SettingsRow
+            icon="funnel-outline"
+            title="News Preferences"
+            subtitle="Categories, auto-sync, Wi-Fi only, cache management"
+            onPress={() => navigate('NewsSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
+
+        {/* SECTION 5: MOTIVATION */}
+        <SettingsSection title="Motivation & Routine" icon="sparkles-outline">
+          <SettingsRow
+            icon="sunny-outline"
+            title="Motivation Preferences"
+            subtitle="Daily rotation, dashboard quote banner, favorite messages"
+            onPress={() => navigate('MotivationSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
+
+        {/* SECTION 6: APPEARANCE */}
+        <SettingsSection title="Appearance & Motion" icon="color-palette-outline">
+          <SettingsRow
+            icon="color-filter-outline"
+            title="Theme & Visuals"
+            subtitle={themeLabels[currentThemeId] || 'Ocean Adventure'}
+            badge={currentThemeId.toUpperCase()}
+            onPress={() => navigate('AppearanceSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
+
+        {/* SECTION 7: DATA & STORAGE */}
+        <SettingsSection title="Data Vault & Portability" icon="server-outline">
+          <SettingsRow
+            icon="cube-outline"
+            title="Data Management"
+            subtitle={`Storage, JSON Export/Import, Reset Progress (${dbStats?.courses_count ?? 14} courses)`}
+            badge="LOCAL"
+            badgeColor="#10B981"
+            onPress={() => navigate('DataManagement')}
+          />
+
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            title="Developer SQLite Test Screen"
+            subtitle="Inspect raw database persistence and foreign keys"
             onPress={() => navigate('DatabaseTest')}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.primary} />
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingActionTitle}>Database Test Screen</Text>
-                <Text style={styles.settingSub}>Developer persistence vault verification</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-          </TouchableOpacity>
+            isLast={true}
+          />
+        </SettingsSection>
 
-          <View style={styles.divider} />
+        {/* SECTION 8: ABOUT */}
+        <SettingsSection title="About Application" icon="information-circle-outline">
+          <SettingsRow
+            icon="planet-outline"
+            title="About One Piece Roadmap"
+            subtitle="Version 1.0.0 Grand Line Edition • Offline-first"
+            badge="v1.0.0"
+            badgeColor="#64748B"
+            onPress={() => navigate('About')}
+            isLast={true}
+          />
+        </SettingsSection>
 
-          <TouchableOpacity
-            style={styles.settingActionRow}
-            activeOpacity={0.7}
-            onPress={() => Alert.alert('Backup Data', 'Database backup and JSON export will be available in Part 7.')}
-          >
-            <View style={styles.settingLeft}>
-              <Ionicons name="cloud-upload-outline" size={20} color="#94A3B8" />
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingActionTitle}>Backup & Export</Text>
-                <Text style={styles.settingSub}>Export progress and notes to JSON</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Section 5: About */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>ABOUT</Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="information-circle-outline" size={20} color="#64748B" />
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>Application Version</Text>
-                <Text style={styles.settingSub}>1.0.0 (Grand Line Edition)</Text>
-              </View>
-            </View>
-            <Text style={styles.versionTag}>v1.0.0</Text>
-          </View>
+        {/* Footer Note */}
+        <View style={styles.footerNote}>
+          <Text style={[styles.footerText, { color: theme.colors.textTertiary }]}>
+            ONE PIECE LEARNING ROADMAP • 100% OFFLINE-FIRST VAULT
+          </Text>
         </View>
       </ScrollView>
     </AppShell>
@@ -156,93 +208,79 @@ export const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 36,
+    paddingBottom: 40,
   },
-  sectionHeaderRow: {
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.8,
-  },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    paddingHorizontal: 14,
+  profileBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 12,
+    marginBottom: 20,
   },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  settingActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  settingLeft: {
+  profileLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  settingTextCol: {
-    marginLeft: 12,
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  avatarEmoji: {
+    fontSize: 26,
+  },
+  profileDetails: {
     flex: 1,
   },
-  settingTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+  captainBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  settingActionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+  captainName: {
+    fontSize: 16,
+    fontWeight: '800',
   },
-  settingSub: {
+  captainRank: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  captainRankText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  avatarTitle: {
     fontSize: 11,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
+  editProfileBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  goalPill: {
-    fontSize: 12,
+  footerNote: {
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  footerText: {
+    fontSize: 10,
     fontWeight: '700',
-    color: Colors.primary,
-    backgroundColor: '#FEF2F2',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  connectedBadge: {
-    backgroundColor: '#DCFCE7',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  connectedText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#15803D',
-  },
-  versionTag: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
+    letterSpacing: 0.8,
   },
 });

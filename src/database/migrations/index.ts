@@ -7,6 +7,7 @@ import { v5_learning_activity } from './v5_learning_activity';
 import { v6_practice_hub } from './v6_practice_hub';
 import { v7_news_system } from './v7_news_system';
 import { v8_motivation_and_goals } from './v8_motivation_and_goals';
+import { v9_settings_and_preferences } from './v9_settings_and_preferences';
 
 export interface Migration {
   version: number;
@@ -23,6 +24,7 @@ export const MIGRATIONS: Migration[] = [
   v6_practice_hub,
   v7_news_system,
   v8_motivation_and_goals,
+  v9_settings_and_preferences,
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
