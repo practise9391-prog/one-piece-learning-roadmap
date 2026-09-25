@@ -10,7 +10,9 @@ import { CompletedScreen } from '../screens/CompletedScreen';
 import { RemainingScreen } from '../screens/RemainingScreen';
 import { StatisticsScreen } from '../screens/StatisticsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { PracticeScreen } from '../screens/PracticeScreen';
+import { PracticeHomeScreen } from '../screens/practice/PracticeHomeScreen';
+import { PracticeCategoryScreen } from '../screens/practice/PracticeCategoryScreen';
+import { PracticeQuestionScreen } from '../screens/practice/PracticeQuestionScreen';
 import { NewsScreen } from '../screens/NewsScreen';
 import { MotivationScreen } from '../screens/MotivationScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
@@ -47,7 +49,13 @@ export const AppNavigator: React.FC = () => {
       return <SettingsScreen />;
 
     case 'PracticeLinks':
-      return <PracticeScreen />;
+      return <PracticeHomeScreen />;
+
+    case 'PracticeCategory':
+      return <PracticeCategoryScreen />;
+
+    case 'PracticeQuestion':
+      return <PracticeQuestionScreen />;
 
     case 'News':
       return <NewsScreen />;

@@ -303,6 +303,21 @@ export const ModuleDetailsScreen: React.FC = () => {
         subtitle={course?.name || 'Roadmap'}
         showBack
         onBackPress={goBack}
+        rightAction={
+          <TouchableOpacity
+            style={styles.practiceHeaderBtn}
+            onPress={() =>
+              navigate('PracticeCategory', {
+                categoryId: courseId,
+                categoryName: course?.name || 'Practice',
+              })
+            }
+            activeOpacity={0.8}
+          >
+            <Ionicons name="flash" size={14} color="#0D1B2A" />
+            <Text style={styles.practiceHeaderBtnText}>Practice</Text>
+          </TouchableOpacity>
+        }
       />
 
       <ScrollView
@@ -843,5 +858,19 @@ const styles = StyleSheet.create({
   },
   completeModuleBtnTextLocked: {
     color: '#94A3B8',
+  },
+  practiceHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFB300',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  practiceHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0D1B2A',
   },
 });

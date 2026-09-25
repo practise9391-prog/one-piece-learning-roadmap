@@ -4,7 +4,9 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../components/Header';
 import { CourseRoadmap } from '../components/roadmap';
 import { CourseWelcomeView } from '../components/welcome';
@@ -124,6 +126,21 @@ export const CourseDetailsScreen: React.FC = () => {
         subtitle={`Island #${course.order} Roadmap`}
         showBack
         onBackPress={goBack}
+        rightAction={
+          <TouchableOpacity
+            style={styles.practiceHeaderBtn}
+            onPress={() =>
+              navigate('PracticeCategory', {
+                categoryId: course.id,
+                categoryName: course.name,
+              })
+            }
+            activeOpacity={0.8}
+          >
+            <Ionicons name="flash" size={14} color="#0D1B2A" />
+            <Text style={styles.practiceHeaderBtnText}>Practice</Text>
+          </TouchableOpacity>
+        }
       />
       <CourseRoadmap
         course={course}
@@ -156,5 +173,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.error,
     fontWeight: '600',
+  },
+  practiceHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFB300',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  practiceHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0D1B2A',
   },
 });

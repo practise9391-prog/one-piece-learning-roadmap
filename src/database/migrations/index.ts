@@ -4,6 +4,7 @@ import { v2_add_topics_and_seed_roadmaps } from './v2_add_topics_and_seed_roadma
 import { v3_module_learning_enhancements } from './v3_module_learning_enhancements';
 import { v4_course_journey_and_completion } from './v4_course_journey_and_completion';
 import { v5_learning_activity } from './v5_learning_activity';
+import { v6_practice_hub } from './v6_practice_hub';
 
 export interface Migration {
   version: number;
@@ -17,6 +18,7 @@ export const MIGRATIONS: Migration[] = [
   v3_module_learning_enhancements,
   v4_course_journey_and_completion,
   v5_learning_activity,
+  v6_practice_hub,
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

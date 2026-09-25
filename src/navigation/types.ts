@@ -11,6 +11,8 @@ export type RootScreen =
   | 'Statistics'
   | 'Settings'
   | 'PracticeLinks'
+  | 'PracticeCategory'
+  | 'PracticeQuestion'
   | 'News'
   | 'Motivation'
   | 'DatabaseTest';
@@ -20,6 +22,9 @@ export interface NavigationState {
   params?: {
     courseId?: string;
     moduleId?: string;
+    categoryId?: string;
+    questionId?: string;
+    topic?: string;
     replay?: boolean;
     [key: string]: any;
   };

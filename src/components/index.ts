@@ -8,4 +8,5 @@ export * from './learning';
 export * from './welcome';
 export * from './navigation';
 export * from './statistics';
+export * from './practice';
 export * from './common/CodeBlock';
