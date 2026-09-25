@@ -13,7 +13,8 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { PracticeHomeScreen } from '../screens/practice/PracticeHomeScreen';
 import { PracticeCategoryScreen } from '../screens/practice/PracticeCategoryScreen';
 import { PracticeQuestionScreen } from '../screens/practice/PracticeQuestionScreen';
-import { NewsScreen } from '../screens/NewsScreen';
+import { NewsHomeScreen } from '../screens/news/NewsHomeScreen';
+import { NewsArticleScreen } from '../screens/news/NewsArticleScreen';
 import { MotivationScreen } from '../screens/MotivationScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
 
@@ -58,7 +59,10 @@ export const AppNavigator: React.FC = () => {
       return <PracticeQuestionScreen />;
 
     case 'News':
-      return <NewsScreen />;
+      return <NewsHomeScreen />;
+
+    case 'NewsArticle':
+      return <NewsArticleScreen />;
 
     case 'Motivation':
       return <MotivationScreen />;

@@ -14,6 +14,7 @@ export type RootScreen =
   | 'PracticeCategory'
   | 'PracticeQuestion'
   | 'News'
+  | 'NewsArticle'
   | 'Motivation'
   | 'DatabaseTest';
 
@@ -24,6 +25,7 @@ export interface NavigationState {
     moduleId?: string;
     categoryId?: string;
     questionId?: string;
+    articleId?: string;
     topic?: string;
     replay?: boolean;
     [key: string]: any;

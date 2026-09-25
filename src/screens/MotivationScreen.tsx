@@ -13,14 +13,13 @@ export const MotivationScreen: React.FC = () => {
       <View style={styles.container}>
         <View style={styles.card}>
           <View style={styles.iconCircle}>
-            <Ionicons name="flame" size={44} color="#D97706" />
+            <Ionicons name="sparkles" size={44} color="#D97706" />
           </View>
-          <Text style={styles.title}>Will of the Explorer</Text>
-          <Text style={styles.subtitle}>Daily Grit & Philosophy</Text>
-          <Text style={styles.quote}>
-            "If you don't take risks, you can't create a future. Every line of code written is an island charted."
+          <Text style={styles.title}>✨ MOTIVATION</Text>
+          <Text style={styles.subtitle}>Daily Inspiration</Text>
+          <Text style={styles.description}>
+            Your motivation feed will be available in a future update.
           </Text>
-          <Text style={styles.author}>— Grand Line Captain</Text>
 
           <TouchableOpacity
             style={styles.backButton}
@@ -46,7 +45,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: 20,
-    padding: 24,
+    padding: 28,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
@@ -75,25 +74,18 @@ const styles = StyleSheet.create({
     marginTop: 4,
     letterSpacing: 0.5,
   },
-  quote: {
+  description: {
     fontSize: 14,
-    fontStyle: 'italic',
-    color: Colors.textPrimary,
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
-    marginVertical: 16,
-  },
-  author: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginBottom: 20,
+    marginVertical: 18,
   },
   backButton: {
     backgroundColor: Colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 10,
+    borderRadius: 12,
     width: '100%',
     alignItems: 'center',
   },

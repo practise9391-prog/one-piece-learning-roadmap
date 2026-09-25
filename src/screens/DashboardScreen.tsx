@@ -16,6 +16,8 @@ import { useAppNavigation } from '../navigation/NavigationContext';
 import { roadmapService } from '../services/RoadmapService';
 import { dashboardService, OverallProgressStats, CurrentLearningItem } from '../services/DashboardService';
 import { Course } from '../models/Course';
+import { newsRepository } from '../repositories/NewsRepository';
+import { NewsArticle, formatRelativeTime } from '../models/News';
 import { Colors } from '../theme/colors';
 
 export const DashboardScreen: React.FC = () => {
@@ -24,19 +26,22 @@ export const DashboardScreen: React.FC = () => {
   const [stats, setStats] = useState<OverallProgressStats | null>(null);
   const [currentLearning, setCurrentLearning] = useState<CurrentLearningItem | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [recentNews, setRecentNews] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const loadDashboardData = useCallback(async () => {
     try {
-      const [fetchedStats, fetchedCurrent, fetchedCourses] = await Promise.all([
+      const [fetchedStats, fetchedCurrent, fetchedCourses, fetchedNews] = await Promise.all([
         dashboardService.getOverallStats(),
         dashboardService.getCurrentLearningItem(),
         roadmapService.getCourses(),
+        newsRepository.getRecentPreview(3).catch(() => []),
       ]);
       setStats(fetchedStats);
       setCurrentLearning(fetchedCurrent);
       setCourses(fetchedCourses);
+      setRecentNews(fetchedNews);
     } catch (err) {
       console.error('Failed to load dashboard data from SQLite:', err);
     } finally {
@@ -355,6 +360,66 @@ export const DashboardScreen: React.FC = () => {
               </TouchableOpacity>
             );
           })}
+
+          {/* 6. LATEST UPDATES / NEWS PREVIEW */}
+          <View style={[styles.sectionHeaderRow, { marginTop: 18 }]}>
+            <View style={styles.sectionHeaderTitleGroup}>
+              <Ionicons name="newspaper-outline" size={18} color="#2563EB" />
+              <Text style={styles.sectionHeaderTitle}>LATEST UPDATES</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigate('News')} activeOpacity={0.7}>
+              <Text style={styles.viewAllText}>View All News</Text>
+            </TouchableOpacity>
+          </View>
+
+          {recentNews.length > 0 ? (
+            recentNews.map((article) => (
+              <TouchableOpacity
+                key={article.id}
+                style={styles.newsPreviewCard}
+                activeOpacity={0.8}
+                onPress={() => navigate('NewsArticle', { articleId: article.id })}
+              >
+                <View style={styles.newsPreviewHeader}>
+                  <View style={styles.newsCategoryChip}>
+                    <Text style={styles.newsCategoryChipText}>{article.category}</Text>
+                  </View>
+                  <Text style={styles.newsTimeText}>{formatRelativeTime(article.published_at)}</Text>
+                </View>
+                <Text style={styles.newsPreviewTitle} numberOfLines={2}>
+                  {article.title}
+                </Text>
+                <View style={styles.newsPreviewFooter}>
+                  <Text style={styles.newsSourceName} numberOfLines={1}>
+                    {article.source_name}
+                  </Text>
+                  <View style={styles.newsReadMoreRow}>
+                    <Text style={styles.newsReadMoreText}>Read</Text>
+                    <Ionicons name="chevron-forward" size={12} color={Colors.primary} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity
+              style={styles.newsEmptyCard}
+              activeOpacity={0.8}
+              onPress={() => navigate('News')}
+            >
+              <Ionicons name="newspaper-outline" size={24} color="#94A3B8" />
+              <Text style={styles.newsEmptyTitle}>Tech & AI Updates Available</Text>
+              <Text style={styles.newsEmptySub}>Tap to explore the latest engineering news</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.viewAllNewsCta}
+            onPress={() => navigate('News')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="newspaper" size={16} color="#FFFFFF" />
+            <Text style={styles.viewAllNewsCtaText}>VIEW ALL UPDATES</Text>
+          </TouchableOpacity>
         </ScrollView>
       )}
     </AppShell>
@@ -751,5 +816,118 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     minWidth: 32,
     textAlign: 'right',
+  },
+  sectionHeaderTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  newsPreviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  newsPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  newsCategoryChip: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  newsCategoryChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2563EB',
+    letterSpacing: 0.4,
+  },
+  newsTimeText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  newsPreviewTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  newsPreviewFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#F8FAFC',
+    paddingTop: 8,
+  },
+  newsSourceName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+    flex: 1,
+    marginRight: 8,
+  },
+  newsReadMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  newsReadMoreText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  newsEmptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 10,
+  },
+  newsEmptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginTop: 6,
+  },
+  newsEmptySub: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  viewAllNewsCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.oceanDepths,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 179, 0, 0.3)',
+  },
+  viewAllNewsCtaText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
   },
 });
