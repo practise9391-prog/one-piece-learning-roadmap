@@ -317,6 +317,18 @@ export const DashboardScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.quickCard}
+              onPress={() => navigate('StudyPlan')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickIconCircle, { backgroundColor: '#EEF2FF' }]}>
+                <Ionicons name="flag-outline" size={22} color="#4F46E5" />
+              </View>
+              <Text style={styles.quickLabel}>Study Plan</Text>
+              <Text style={styles.quickSub}>Target & Goals</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
               onPress={() => navigate('DailyLearning')}
               activeOpacity={0.8}
             >
@@ -788,16 +800,18 @@ const styles = StyleSheet.create({
   },
   quickGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   quickCard: {
-    flex: 1,
+    width: '23%',
     backgroundColor: Colors.surface,
     borderRadius: 14,
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: Colors.border,
   },

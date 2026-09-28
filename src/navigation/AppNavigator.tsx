@@ -33,6 +33,7 @@ import { FocusHistoryScreen } from '../screens/focus/FocusHistoryScreen';
 import { FocusSettingsScreen } from '../screens/settings/FocusSettingsScreen';
 import { TopicSearchScreen } from '../screens/search/TopicSearchScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
+import { StudyPlanScreen } from '../screens/studyPlan/StudyPlanScreen';
 
 export const AppNavigator: React.FC = () => {
   const { currentScreen } = useAppNavigation();
@@ -130,6 +131,9 @@ export const AppNavigator: React.FC = () => {
 
     case 'TopicSearch':
       return <TopicSearchScreen />;
+
+    case 'StudyPlan':
+      return <StudyPlanScreen />;
 
     case 'DatabaseTest':
       return <DatabaseTestScreen />;

@@ -31,6 +31,7 @@ export type RootScreen =
   | 'FocusMode'
   | 'FocusHistory'
   | 'FocusSettings'
+  | 'StudyPlan'
   | 'TopicSearch'
   | 'DatabaseTest';
 
