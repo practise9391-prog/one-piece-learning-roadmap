@@ -8,9 +8,17 @@ import { javascriptRoadmap } from './javascriptRoadmap';
 import { htmlRoadmap, cssRoadmap } from './webRoadmaps';
 import { djangoRoadmap, frappeRoadmap } from './backendRoadmaps';
 import { mlRoadmap } from './mlRoadmap';
-import { aptitudeRoadmap, englishRoadmap, hindiRoadmap } from './skillsRoadmaps';
+import { aptitudeRoadmap } from './aptitudeRoadmap';
+import { reasoningRoadmap } from './reasoningRoadmap';
+import { verbalEnglishRoadmap } from './verbalEnglishRoadmap';
+import { englishSpeakingRoadmap } from './englishSpeakingRoadmap';
+import { hindiRoadmap } from './skillsRoadmaps';
 
 export * from './types';
+export { aptitudeRoadmap } from './aptitudeRoadmap';
+export { reasoningRoadmap } from './reasoningRoadmap';
+export { verbalEnglishRoadmap } from './verbalEnglishRoadmap';
+export { englishSpeakingRoadmap } from './englishSpeakingRoadmap';
 
 export const ALL_COURSE_ROADMAPS: CourseRoadmapSeed[] = [
   pythonRoadmap,
@@ -22,7 +30,9 @@ export const ALL_COURSE_ROADMAPS: CourseRoadmapSeed[] = [
   linuxRoadmap,
   frappeRoadmap,
   aptitudeRoadmap,
-  englishRoadmap,
+  reasoningRoadmap,
+  verbalEnglishRoadmap,
+  englishSpeakingRoadmap,
   hindiRoadmap,
   htmlRoadmap,
   cssRoadmap,

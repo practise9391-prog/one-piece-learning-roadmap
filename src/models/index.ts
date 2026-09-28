@@ -10,3 +10,5 @@ export * from './Motivation';
 export * from './Settings';
 export * from './Notification';
 export * from './Focus';
+export * from './Speaking';
+export * from './Search';

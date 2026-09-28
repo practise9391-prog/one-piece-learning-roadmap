@@ -43,8 +43,14 @@ export const CourseIcon: React.FC<CourseIconProps> = ({
       case 'aptitude_reasoning':
       case 'aptitude':
         return { name: 'calculator-variant', defaultColor: '#D97706', bg: '#FFFBEB' };
+      case 'reasoning':
+        return { name: 'head-snowflake-outline', defaultColor: '#4F46E5', bg: '#EEF2FF' };
       case 'english':
+      case 'verbal_english':
         return { name: 'book-open-page-variant', defaultColor: '#0D9488', bg: '#F0FDFA' };
+      case 'english_speaking':
+      case 'speaking':
+        return { name: 'microphone-message', defaultColor: '#059669', bg: '#ECFDF5' };
       case 'hindi':
         return { name: 'translate', defaultColor: '#EA580C', bg: '#FFF7ED' };
       case 'html':

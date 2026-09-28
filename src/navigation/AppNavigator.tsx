@@ -31,6 +31,7 @@ import { AchievementsScreen } from '../screens/motivation/AchievementsScreen';
 import { FocusScreen } from '../screens/focus/FocusScreen';
 import { FocusHistoryScreen } from '../screens/focus/FocusHistoryScreen';
 import { FocusSettingsScreen } from '../screens/settings/FocusSettingsScreen';
+import { TopicSearchScreen } from '../screens/search/TopicSearchScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
 
 export const AppNavigator: React.FC = () => {
@@ -126,6 +127,9 @@ export const AppNavigator: React.FC = () => {
 
     case 'FocusSettings':
       return <FocusSettingsScreen />;
+
+    case 'TopicSearch':
+      return <TopicSearchScreen />;
 
     case 'DatabaseTest':
       return <DatabaseTestScreen />;

@@ -38,15 +38,26 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
         </View>
       </View>
 
-      {/* Right: Settings Icon */}
-      <TouchableOpacity
-        style={styles.iconButton}
-        onPress={() => navigate('Settings')}
-        activeOpacity={0.7}
-        accessibilityLabel="Open Settings"
-      >
-        <Ionicons name="settings-outline" size={22} color="#CBD5E1" />
-      </TouchableOpacity>
+      {/* Right: Search and Settings Icons */}
+      <View style={styles.rightActionsRow}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigate('TopicSearch')}
+          activeOpacity={0.7}
+          accessibilityLabel="Search Topics"
+        >
+          <Ionicons name="search" size={20} color="#CBD5E1" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigate('Settings')}
+          activeOpacity={0.7}
+          accessibilityLabel="Open Settings"
+        >
+          <Ionicons name="settings-outline" size={20} color="#CBD5E1" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -61,6 +72,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  rightActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   iconButton: {
     width: 40,

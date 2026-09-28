@@ -302,6 +302,18 @@ export const DashboardScreen: React.FC = () => {
               <Text style={styles.quickLabel}>Practice</Text>
               <Text style={styles.quickSub}>Code Arena</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              onPress={() => navigate('TopicSearch')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickIconCircle, { backgroundColor: '#F0FDFA' }]}>
+                <Ionicons name="search-outline" size={22} color="#0D9488" />
+              </View>
+              <Text style={styles.quickLabel}>Search</Text>
+              <Text style={styles.quickSub}>All Topics</Text>
+            </TouchableOpacity>
           </View>
 
           {/* FOCUS TODAY CARD */}

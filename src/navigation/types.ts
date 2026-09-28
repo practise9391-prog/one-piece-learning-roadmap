@@ -31,6 +31,7 @@ export type RootScreen =
   | 'FocusMode'
   | 'FocusHistory'
   | 'FocusSettings'
+  | 'TopicSearch'
   | 'DatabaseTest';
 
 export interface NavigationState {
@@ -42,6 +43,7 @@ export interface NavigationState {
     questionId?: string;
     articleId?: string;
     topic?: string;
+    query?: string;
     replay?: boolean;
     [key: string]: any;
   };

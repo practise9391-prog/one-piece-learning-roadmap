@@ -138,9 +138,15 @@ export const CourseCompletionScreen: React.FC = () => {
         return 'Your responsive design and styling journey is complete. Craft beauty on any canvas.';
       case 'aptitude_reasoning':
       case 'aptitude':
-        return 'Your analytical thinking and problem solving is razor-sharp.';
+        return 'Your quantitative aptitude, speed calculations, and numerical mastery are razor-sharp!';
+      case 'reasoning':
+        return 'Your logical deduction, spatial reasoning, and critical thinking can unravel any puzzle!';
       case 'english':
-        return 'Your communication and professional language mastery is complete. Speak with authority.';
+      case 'verbal_english':
+        return 'Your corporate communication, grammar precision, and verbal mastery are supreme. Speak and write with authority!';
+      case 'english_speaking':
+      case 'speaking':
+        return 'You speak English confidently in real-life situations without fear. Your fluency inspires!';
       case 'hindi':
         return 'Your language comprehension and fluency journey is complete.';
       case 'frappe':
