@@ -28,6 +28,7 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { id: 'Dashboard', label: 'Dashboard', icon: 'grid-outline' },
+  { id: 'DailyLearning', label: "Today's Plan", icon: 'calendar-outline' },
   { id: 'Courses', label: 'Courses', icon: 'book-outline' },
   { id: 'TopicSearch', label: 'Search Topics', icon: 'search-outline' },
   { id: 'Statistics', label: 'Statistics', icon: 'pie-chart-outline' },

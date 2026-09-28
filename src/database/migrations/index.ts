@@ -11,6 +11,7 @@ import { v9_settings_and_preferences } from './v9_settings_and_preferences';
 import { v10_local_notifications } from './v10_local_notifications';
 import { v11_focus_study_sessions } from './v11_focus_study_sessions';
 import { v12_part14_roadmaps_and_speaking } from './v12_part14_roadmaps_and_speaking';
+import { v13_part15_daily_learning } from './v13_part15_daily_learning';
 
 export interface Migration {
   version: number;
@@ -31,6 +32,7 @@ export const MIGRATIONS: Migration[] = [
   v10_local_notifications,
   v11_focus_study_sessions,
   v12_part14_roadmaps_and_speaking,
+  v13_part15_daily_learning,
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

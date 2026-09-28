@@ -12,3 +12,4 @@ export * from './DataManagementRepository';
 export * from './NotificationRepository';
 export * from './StudySessionRepository';
 export * from './SpeakingRepository';
+export * from './DailyLearningRepository';

@@ -12,3 +12,4 @@ export * from './Notification';
 export * from './Focus';
 export * from './Speaking';
 export * from './Search';
+export * from './DailyLearning';

@@ -314,6 +314,49 @@ export const DashboardScreen: React.FC = () => {
               <Text style={styles.quickLabel}>Search</Text>
               <Text style={styles.quickSub}>All Topics</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              onPress={() => navigate('DailyLearning')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="calendar-outline" size={22} color="#D97706" />
+              </View>
+              <Text style={styles.quickLabel}>Daily Plan</Text>
+              <Text style={styles.quickSub}>Today's Goals</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* TODAY'S JOURNEY CARD */}
+          <View style={{ marginBottom: 20 }}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeaderTitle}>✨ TODAY'S JOURNEY</Text>
+              <TouchableOpacity onPress={() => navigate('DailyLearning')} activeOpacity={0.7}>
+                <Text style={styles.viewAllText}>View Plan ›</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.focusTodayCard}
+              onPress={() => navigate('DailyLearning')}
+              activeOpacity={0.88}
+            >
+              <View style={styles.focusCardHeader}>
+                <View style={[styles.focusCrest, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="compass-outline" size={24} color="#D97706" />
+                </View>
+                <View style={styles.focusTextCol}>
+                  <Text style={styles.focusTitle}>Daily Learning Roadmap</Text>
+                  <Text style={styles.focusSubtitle}>
+                    Structured daily missions: Technical, Aptitude, English & Revision.
+                  </Text>
+                </View>
+                <View style={[styles.focusStartBtn, { backgroundColor: '#D97706' }]}>
+                  <Text style={styles.focusStartBtnText}>TODAY</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* FOCUS TODAY CARD */}

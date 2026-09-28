@@ -4,7 +4,8 @@ export type ActivityType =
   | 'MODULE_COMPLETED'
   | 'NOTE_CREATED'
   | 'NOTE_UPDATED'
-  | 'STUDY_SESSION_COMPLETED';
+  | 'STUDY_SESSION_COMPLETED'
+  | 'DAILY_TASK_COMPLETED';
 
 export interface LearningActivity {
   id: string;
