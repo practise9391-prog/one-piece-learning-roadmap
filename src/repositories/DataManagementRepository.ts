@@ -23,6 +23,8 @@ export class DataManagementRepository {
       practiceRow,
       newsRow,
       activityRow,
+      studySessionsRow,
+      studyMinutesRow,
       newsBytesRow,
     ] = await Promise.all([
       database.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM courses;'),
@@ -32,6 +34,8 @@ export class DataManagementRepository {
       database.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM practice_questions;'),
       database.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM news_articles;'),
       database.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM learning_activity;'),
+      database.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM study_sessions WHERE status = \'COMPLETED\';'),
+      database.getFirstAsync<{ totalSecs: number }>('SELECT COALESCE(SUM(duration_seconds), 0) as totalSecs FROM study_sessions WHERE status = \'COMPLETED\';'),
       database.getFirstAsync<{ totalBytes: number }>(`
         SELECT COALESCE(SUM(LENGTH(title) + LENGTH(COALESCE(content, '')) + LENGTH(COALESCE(description, ''))), 0) as totalBytes
         FROM news_articles;
@@ -48,6 +52,7 @@ export class DataManagementRepository {
       (topicsRow?.count || 0) * 384 +
       (notesRow?.count || 0) * 1024 +
       (practiceRow?.count || 0) * 1536 +
+      (studySessionsRow?.count || 0) * 256 +
       newsBytes +
       (activityRow?.count || 0) * 256;
 
@@ -61,6 +66,8 @@ export class DataManagementRepository {
       practice_questions_count: practiceRow?.count || 0,
       news_articles_count: newsCount,
       learning_activities_count: activityRow?.count || 0,
+      study_sessions_count: studySessionsRow?.count || 0,
+      total_study_minutes: Math.round((studyMinutesRow?.totalSecs || 0) / 60),
       news_cache_bytes: newsBytes,
       database_size_desc: `${mbSize} MB (Local SQLite Database)`,
     };
@@ -82,6 +89,7 @@ export class DataManagementRepository {
       completedModulesRows,
       completedCoursesRows,
       activityRows,
+      studySessionsRows,
       attemptsRows,
       practiceBookmarksRows,
       newsBookmarksRows,
@@ -102,6 +110,7 @@ export class DataManagementRepository {
         'SELECT id, completed_modules, progress_percentage, is_completed, started_at, completed_at FROM courses WHERE completed_modules > 0 OR is_completed = 1;'
       ),
       database.getAllAsync('SELECT * FROM learning_activity ORDER BY timestamp ASC;'),
+      database.getAllAsync('SELECT * FROM study_sessions ORDER BY started_at ASC;'),
       database.getAllAsync('SELECT * FROM practice_attempts ORDER BY attempted_at ASC;'),
       database.getAllAsync<{ id: string }>('SELECT id FROM practice_questions WHERE is_bookmarked = 1;'),
       database.getAllAsync('SELECT * FROM news_articles WHERE is_bookmarked = 1;'),
@@ -135,6 +144,7 @@ export class DataManagementRepository {
         modules_progress: completedModulesRows,
         courses_progress: completedCoursesRows,
         learning_activity: activityRows,
+        study_sessions: studySessionsRows,
         practice_attempts: attemptsRows,
         practice_bookmarks: practiceBookmarksRows.map((p) => p.id),
         news_bookmarks: newsBookmarksRows,
@@ -446,6 +456,37 @@ export class DataManagementRepository {
             }
           }
         }
+
+        // 14. Study Sessions
+        if (Array.isArray(data.study_sessions)) {
+          for (const sess of data.study_sessions) {
+            if (sess.id && sess.course_id) {
+              await database.runAsync(
+                `INSERT OR IGNORE INTO study_sessions (
+                  id, course_id, module_id, topic_id, planned_duration_seconds,
+                  actual_duration_seconds, duration_seconds, status, started_at,
+                  completed_at, paused_at, total_paused_seconds, notes, date_str
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                [
+                  sess.id,
+                  sess.course_id,
+                  sess.module_id || null,
+                  sess.topic_id || null,
+                  sess.planned_duration_seconds || 1500,
+                  sess.actual_duration_seconds || sess.duration_seconds || 0,
+                  sess.duration_seconds || 0,
+                  sess.status || 'COMPLETED',
+                  sess.started_at || now,
+                  sess.completed_at || null,
+                  sess.paused_at || null,
+                  sess.total_paused_seconds || 0,
+                  sess.notes || null,
+                  sess.date_str || (sess.started_at ? sess.started_at.split('T')[0] : now.split('T')[0]),
+                ]
+              );
+            }
+          }
+        }
       });
 
       return {
@@ -559,6 +600,12 @@ export class DataManagementRepository {
         await database.runAsync(`UPDATE app_settings SET value = 'all', updated_at = ? WHERE key = 'default_difficulty';`, [now]);
         await database.runAsync(`UPDATE app_settings SET value = 'ocean', updated_at = ? WHERE key = 'theme_id';`, [now]);
         await database.runAsync(`UPDATE app_settings SET value = 'false', updated_at = ? WHERE key = 'reduced_motion';`, [now]);
+        await database.runAsync(`UPDATE app_settings SET value = '25', updated_at = ? WHERE key = 'focus_default_duration';`, [now]);
+        await database.runAsync(`UPDATE app_settings SET value = 'true', updated_at = ? WHERE key = 'focus_vibration_enabled';`, [now]);
+        await database.runAsync(`UPDATE app_settings SET value = 'true', updated_at = ? WHERE key = 'focus_sound_enabled';`, [now]);
+        await database.runAsync(`UPDATE app_settings SET value = 'true', updated_at = ? WHERE key = 'focus_auto_prompt_next';`, [now]);
+        await database.runAsync(`UPDATE app_settings SET value = 'true', updated_at = ? WHERE key = 'focus_show_dashboard_card';`, [now]);
+        await database.runAsync(`UPDATE app_settings SET value = '300', updated_at = ? WHERE key = 'focus_min_qualifying_seconds';`, [now]);
 
         // Reset goal settings
         await database.runAsync(`UPDATE goal_settings SET value = '2' WHERE key = 'topics_per_day';`);
@@ -587,9 +634,12 @@ export class DataManagementRepository {
         await database.runAsync('DELETE FROM scheduled_notifications;');
       });
 
-      // Cancel all active Expo scheduled notifications
+      // Cancel all active Expo scheduled notifications & focus timer
       import('../services/NotificationService').then(({ notificationService }) => {
         notificationService.cancelAllNotifications().catch(() => {});
+      });
+      import('../services/FocusTimerService').then(({ focusTimerService }) => {
+        focusTimerService.cancelActiveSession();
       });
 
       return {

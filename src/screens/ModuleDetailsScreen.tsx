@@ -27,6 +27,8 @@ import { topicContentService } from '../services/TopicContentService';
 import { topicRepository } from '../repositories/TopicRepository';
 import { moduleRepository } from '../repositories/ModuleRepository';
 import { activityRepository } from '../repositories/ActivityRepository';
+import { studySessionRepository } from '../repositories/StudySessionRepository';
+import { formatMinutesOrHours } from '../hooks/useFocusTimer';
 import { Course } from '../models/Course';
 import { Module } from '../models/Module';
 import { Topic } from '../models/Topic';
@@ -61,6 +63,9 @@ export const ModuleDetailsScreen: React.FC = () => {
 
   const [incompleteModalVisible, setIncompleteModalVisible] = useState<boolean>(false);
   const [celebrationModalVisible, setCelebrationModalVisible] = useState<boolean>(false);
+
+  const [moduleStudySecs, setModuleStudySecs] = useState<number>(0);
+  const [topicStudySecs, setTopicStudySecs] = useState<number>(0);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -111,6 +116,10 @@ export const ModuleDetailsScreen: React.FC = () => {
           moduleId,
           activityType: 'MODULE_OPENED',
         }).catch(() => {});
+
+        studySessionRepository.getStudySessionsByModule(moduleId)
+          .then(setModuleStudySecs)
+          .catch(() => {});
       }
     } catch (err) {
       console.error('Failed to load module learning data from SQLite:', err);
@@ -122,6 +131,17 @@ export const ModuleDetailsScreen: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const currentTopic = topics[selectedTopicIndex];
+    if (currentTopic) {
+      studySessionRepository.getStudySessionsByTopic(currentTopic.id)
+        .then(setTopicStudySecs)
+        .catch(() => {});
+    } else {
+      setTopicStudySecs(0);
+    }
+  }, [topics, selectedTopicIndex]);
 
   const handleSelectTopicIndex = (index: number) => {
     setSelectedTopicIndex(index);
@@ -417,6 +437,25 @@ export const ModuleDetailsScreen: React.FC = () => {
               height={8}
             />
           </View>
+
+          {/* Module Focus Action Row */}
+          <View style={styles.moduleFocusRow}>
+            <View style={styles.studyTimeBadge}>
+              <Ionicons name="time-outline" size={14} color="#0284C7" />
+              <Text style={styles.studyTimeBadgeText}>
+                Study Time: <Text style={{ fontWeight: '800' }}>{formatMinutesOrHours(moduleStudySecs)}</Text>
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.startFocusSessionBtn}
+              onPress={() => navigate('FocusMode', { courseId, moduleId: module.id })}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="timer-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={styles.startFocusSessionBtnText}>Start Focus Session</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {topics.length > 0 && (
@@ -460,6 +499,27 @@ export const ModuleDetailsScreen: React.FC = () => {
                 >
                   {currentTopic.is_completed ? 'Completed' : 'Mark Complete'}
                 </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Topic Study Action Row */}
+            <View style={styles.topicFocusRow}>
+              {topicStudySecs > 0 ? (
+                <View style={styles.topicStudyTimeBadge}>
+                  <Ionicons name="hourglass-outline" size={12} color="#0284C7" />
+                  <Text style={styles.topicStudyTimeText}>
+                    Time Studied: <Text style={{ fontWeight: '700' }}>{formatMinutesOrHours(topicStudySecs)}</Text>
+                  </Text>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.studyTopicBtn}
+                onPress={() => navigate('FocusMode', { courseId, moduleId: module.id, topicId: currentTopic.id })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="timer-outline" size={13} color="#0284C7" style={{ marginRight: 4 }} />
+                <Text style={styles.studyTopicBtnText}>Study This Topic</Text>
               </TouchableOpacity>
             </View>
 
@@ -872,5 +932,79 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#0D1B2A',
+  },
+  moduleFocusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  studyTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  studyTimeBadgeText: {
+    fontSize: 11,
+    color: '#0369A1',
+    marginLeft: 4,
+  },
+  startFocusSessionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  startFocusSessionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  topicFocusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  topicStudyTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  topicStudyTimeText: {
+    fontSize: 11,
+    color: '#475569',
+    marginLeft: 4,
+  },
+  studyTopicBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  studyTopicBtnText: {
+    color: '#0284C7',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

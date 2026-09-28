@@ -127,6 +127,17 @@ export const SettingsScreen: React.FC = () => {
           />
         </SettingsSection>
 
+        {/* SECTION 4: FOCUS MODE */}
+        <SettingsSection title="Focus Mode & Study Timer" icon="timer-outline">
+          <SettingsRow
+            icon="hourglass-outline"
+            title="Focus Study Settings"
+            subtitle="Default duration, vibration, sounds, minimum qualifying session"
+            onPress={() => navigate('FocusSettings')}
+            isLast={true}
+          />
+        </SettingsSection>
+
         {/* SECTION 4: NEWS */}
         <SettingsSection title="Dispatches & News Feeds" icon="newspaper-outline">
           <SettingsRow

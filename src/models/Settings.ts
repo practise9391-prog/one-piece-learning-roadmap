@@ -87,6 +87,8 @@ export interface DatabaseStatistics {
   practice_questions_count: number;
   news_articles_count: number;
   learning_activities_count: number;
+  study_sessions_count?: number;
+  total_study_minutes?: number;
   news_cache_bytes: number;
   database_size_desc: string;
 }
@@ -109,6 +111,7 @@ export interface BackupPayload {
     modules_progress?: { id: string; is_completed: number; completed_at: string | null; completed_topics_count: number; status: string }[];
     courses_progress?: { id: string; completed_modules: number; progress_percentage: number; is_completed: number; started_at: string | null; completed_at: string | null }[];
     learning_activity?: any[];
+    study_sessions?: any[];
     practice_attempts?: any[];
     practice_bookmarks?: string[];
     news_bookmarks?: any[];

@@ -51,6 +51,20 @@ export class RoadmapService {
   }
 
   /**
+   * Retrieves modules for a course.
+   */
+  async getModulesByCourse(courseId: string): Promise<Module[]> {
+    return await moduleRepository.getByCourseId(courseId);
+  }
+
+  /**
+   * Retrieves topics for a module.
+   */
+  async getTopicsByModule(moduleId: string): Promise<Topic[]> {
+    return await topicRepository.getByModuleId(moduleId);
+  }
+
+  /**
    * Adds a new course to SQLite.
    */
   async addCourse(params: {

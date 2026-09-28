@@ -191,6 +191,7 @@ export class MotivationRepository {
       [generateId('goal'), dateStr, 'PRACTICE_QUESTIONS', `Solve ${practiceTarget} practice challenges`, practiceTarget],
       [generateId('goal'), dateStr, 'COMPLETE_MODULE', 'Study & progress on 1 module', 1],
       [generateId('goal'), dateStr, 'WRITE_NOTE', 'Record 1 learning note or reflection', 1],
+      [generateId('goal'), dateStr, 'STUDY_SESSION', 'Complete 1 focused study session', 1],
     ];
 
     for (const [id, d, type, title, target] of goalsToInsert) {
@@ -246,6 +247,14 @@ export class MotivationRepository {
     );
     const notesToday = noteRow?.count || 0;
 
+    // 5. Qualifying study sessions completed today (>= 5 min / 300s)
+    const studyRow = await database.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM study_sessions
+       WHERE status = 'COMPLETED' AND duration_seconds >= 300 AND started_at LIKE ?;`,
+      [`${dateStr}%`]
+    );
+    const studySessionsToday = studyRow?.count || 0;
+
     // Load goals and update each
     const existing = await database.getAllAsync<any>(
       'SELECT * FROM daily_goals WHERE date = ? ORDER BY id ASC;',
@@ -268,6 +277,9 @@ export class MotivationRepository {
           break;
         case 'WRITE_NOTE':
           currentVal = notesToday;
+          break;
+        case 'STUDY_SESSION':
+          currentVal = studySessionsToday;
           break;
         default:
           currentVal = r.current || 0;
@@ -573,6 +585,16 @@ export class MotivationRepository {
     const noteStats = await database.getFirstAsync<{ count: number }>(
       'SELECT COUNT(*) as count FROM notes;'
     );
+    const focusSessionsStats = await database.getFirstAsync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM study_sessions WHERE status = 'COMPLETED';"
+    );
+    const deepWorkStats = await database.getFirstAsync<{ max_val: number }>(
+      "SELECT COALESCE(MAX(duration_seconds), 0) as max_val FROM study_sessions WHERE status = 'COMPLETED';"
+    );
+    const studyTimeStats = await database.getFirstAsync<{ total_seconds: number }>(
+      "SELECT COALESCE(SUM(duration_seconds), 0) as total_seconds FROM study_sessions WHERE status = 'COMPLETED';"
+    );
+    const totalStudySecs = studyTimeStats?.total_seconds || 0;
 
     const values: Record<string, number> = {
       STREAK_DAYS: streakMetrics.currentStreak,
@@ -582,6 +604,10 @@ export class MotivationRepository {
       PRACTICE_SOLVED: practiceStats?.count || 0,
       NOTES_WRITTEN: noteStats?.count || 0,
       WEEKLY_DAYS: streakMetrics.activeWeekDays.filter(Boolean).length,
+      FOCUS_SESSIONS_COMPLETED: focusSessionsStats?.count || 0,
+      FOCUS_DEEP_WORK: deepWorkStats?.max_val || 0,
+      FOCUS_TOTAL_MINUTES: Math.floor(totalStudySecs / 60),
+      FOCUS_TOTAL_HOURS: Math.floor(totalStudySecs / 3600),
     };
 
     const locked = await database.getAllAsync<any>(

@@ -28,6 +28,9 @@ import { NewsArticleScreen } from '../screens/news/NewsArticleScreen';
 import { MotivationHomeScreen } from '../screens/motivation/MotivationHomeScreen';
 import { DailyLearningScreen } from '../screens/motivation/DailyLearningScreen';
 import { AchievementsScreen } from '../screens/motivation/AchievementsScreen';
+import { FocusScreen } from '../screens/focus/FocusScreen';
+import { FocusHistoryScreen } from '../screens/focus/FocusHistoryScreen';
+import { FocusSettingsScreen } from '../screens/settings/FocusSettingsScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
 
 export const AppNavigator: React.FC = () => {
@@ -114,6 +117,15 @@ export const AppNavigator: React.FC = () => {
 
     case 'Achievements':
       return <AchievementsScreen />;
+
+    case 'FocusMode':
+      return <FocusScreen />;
+
+    case 'FocusHistory':
+      return <FocusHistoryScreen />;
+
+    case 'FocusSettings':
+      return <FocusSettingsScreen />;
 
     case 'DatabaseTest':
       return <DatabaseTestScreen />;

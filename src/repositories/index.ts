@@ -10,3 +10,4 @@ export * from './MotivationRepository';
 export * from './SettingsRepository';
 export * from './DataManagementRepository';
 export * from './NotificationRepository';
+export * from './StudySessionRepository';

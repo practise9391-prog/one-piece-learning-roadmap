@@ -593,6 +593,42 @@ export class NotificationService {
   }
 
   /**
+   * Sends an immediate local notification when a focus study session finishes.
+   */
+  async sendFocusCompletionNotification(courseName: string, minutes: number): Promise<boolean> {
+    const prefs = await notificationRepository.getPreferences();
+    if (!prefs.notifications_enabled) return false;
+
+    const perm = await this.getPermissionStatus();
+    if (perm !== 'granted') return false;
+
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🎯 Focus Session Complete!',
+          body: `You studied ${courseName} for ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}. Great voyage progress!`,
+          data: {
+            type: 'DAILY_LEARNING',
+            target_screen: 'Dashboard',
+            title: '🎯 Focus Complete',
+            body: `You studied ${courseName} for ${minutes} minutes.`,
+          },
+          sound: 'default',
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 1,
+          channelId: 'learning_reminders',
+        },
+      });
+      return true;
+    } catch (err) {
+      console.warn('[NotificationService] Focus completion notification failed:', err);
+      return false;
+    }
+  }
+
+  /**
    * Reschedules all enabled reminders according to persisted notification preferences.
    * Safe to call on app startup and reboot.
    */

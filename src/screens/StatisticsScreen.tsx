@@ -23,6 +23,9 @@ import {
   ProgressDataPoint,
 } from '../services/StatisticsService';
 import { StreakMetrics } from '../repositories/ActivityRepository';
+import { studySessionRepository } from '../repositories/StudySessionRepository';
+import { FocusOverallStats, FocusCourseStats, DayStudyTime } from '../models/Focus';
+import { formatMinutesOrHours } from '../hooks/useFocusTimer';
 import { formatDate } from '../utils/dateUtils';
 import { Colors } from '../theme/colors';
 
@@ -38,6 +41,9 @@ export const StatisticsScreen: React.FC = () => {
     hasEnoughData: boolean;
     dataPoints: ProgressDataPoint[];
   }>({ hasEnoughData: false, dataPoints: [] });
+  const [focusStats, setFocusStats] = useState<FocusOverallStats | null>(null);
+  const [focusCourseStats, setFocusCourseStats] = useState<FocusCourseStats[]>([]);
+  const [focusDayChart, setFocusDayChart] = useState<DayStudyTime[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -54,6 +60,9 @@ export const StatisticsScreen: React.FC = () => {
         fetchedHeatmap,
         fetchedAchievements,
         fetchedHistory,
+        fetchedFocusStats,
+        fetchedFocusCourses,
+        fetchedFocusDays,
       ] = await Promise.all([
         statisticsService.getOverallStatistics(),
         statisticsService.getCourseStatistics(),
@@ -61,6 +70,9 @@ export const StatisticsScreen: React.FC = () => {
         statisticsService.getCalendarHeatmap(),
         statisticsService.getRecentAchievements(10),
         statisticsService.getProgressHistory(),
+        studySessionRepository.getFocusOverallStats(),
+        studySessionRepository.getStudySessionsByCourse(),
+        studySessionRepository.getStudyTimeByDayLast7Days(),
       ]);
 
       setOverall(fetchedOverall);
@@ -69,6 +81,9 @@ export const StatisticsScreen: React.FC = () => {
       setHeatmap(fetchedHeatmap);
       setAchievements(fetchedAchievements);
       setProgressHistory(fetchedHistory);
+      setFocusStats(fetchedFocusStats);
+      setFocusCourseStats(fetchedFocusCourses);
+      setFocusDayChart(fetchedFocusDays);
 
       // Animate progress
       Animated.timing(progressAnim, {
@@ -299,6 +314,147 @@ export const StatisticsScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+
+          {/* FOCUS STUDY STATISTICS */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>🎯 FOCUS & STUDY TIME</Text>
+            <TouchableOpacity onPress={() => navigate('FocusHistory')} activeOpacity={0.7}>
+              <Text style={styles.viewHistoryLink}>History ›</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Primary Focus Metrics Card */}
+          <View style={styles.focusStatCard}>
+            <View style={styles.focusCardTopRow}>
+              <View style={styles.focusStatHeaderCol}>
+                <Text style={styles.focusStatHeading}>Voyage Study Metrics</Text>
+                <Text style={styles.focusStatSub}>Calculated from verified local study sessions</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.launchFocusBtn}
+                onPress={() => navigate('FocusMode')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="timer" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.launchFocusBtnText}>START FOCUS</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.focusMetricsGrid}>
+              <View style={styles.focusMetricTile}>
+                <Text style={styles.focusTileValue}>
+                  {formatMinutesOrHours(focusStats?.today_seconds || 0)}
+                </Text>
+                <Text style={styles.focusTileLabel}>TODAY</Text>
+              </View>
+
+              <View style={styles.focusTileDivider} />
+
+              <View style={styles.focusMetricTile}>
+                <Text style={styles.focusTileValue}>
+                  {formatMinutesOrHours(focusStats?.week_seconds || 0)}
+                </Text>
+                <Text style={styles.focusTileLabel}>THIS WEEK</Text>
+              </View>
+
+              <View style={styles.focusTileDivider} />
+
+              <View style={styles.focusMetricTile}>
+                <Text style={styles.focusTileValue}>
+                  {formatMinutesOrHours(focusStats?.month_seconds || 0)}
+                </Text>
+                <Text style={styles.focusTileLabel}>THIS MONTH</Text>
+              </View>
+            </View>
+
+            <View style={styles.focusStatDividerHoriz} />
+
+            <View style={styles.focusSecondaryGrid}>
+              <View style={styles.focusSecondaryTile}>
+                <Text style={styles.secondaryTileLabel}>Sessions Today</Text>
+                <Text style={styles.secondaryTileValue}>{focusStats?.today_sessions_count || 0}</Text>
+              </View>
+              <View style={styles.focusSecondaryTile}>
+                <Text style={styles.secondaryTileLabel}>This Week</Text>
+                <Text style={styles.secondaryTileValue}>{focusStats?.week_sessions_count || 0}</Text>
+              </View>
+              <View style={styles.focusSecondaryTile}>
+                <Text style={styles.secondaryTileLabel}>Average</Text>
+                <Text style={styles.secondaryTileValue}>
+                  {formatMinutesOrHours(focusStats?.average_duration_seconds || 0)}
+                </Text>
+              </View>
+              <View style={styles.focusSecondaryTile}>
+                <Text style={styles.secondaryTileLabel}>Longest</Text>
+                <Text style={styles.secondaryTileValue}>
+                  {formatMinutesOrHours(focusStats?.longest_duration_seconds || 0)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Study Time 7-Day Chart */}
+          <View style={styles.chartCard}>
+            <View style={styles.chartHeader}>
+              <Ionicons name="bar-chart-outline" size={16} color="#0284C7" />
+              <Text style={styles.chartTitle}>Study Time (Last 7 Days)</Text>
+            </View>
+
+            <View style={styles.barChartContainer}>
+              {focusDayChart.map((d, idx) => {
+                const maxDaySecs = Math.max(1, ...focusDayChart.map((c) => c.seconds));
+                const barHeight = Math.max(6, Math.round((d.seconds / maxDaySecs) * 80));
+                const mins = Math.round(d.seconds / 60);
+
+                return (
+                  <View key={idx} style={styles.barCol}>
+                    <Text style={styles.barMinsText}>{mins > 0 ? `${mins}m` : ''}</Text>
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          { height: barHeight },
+                          d.seconds > 0 && styles.barFillActive,
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barDayLabel}>{d.day_label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Study Time By Course Distribution */}
+          {focusCourseStats.length > 0 ? (
+            <View style={styles.courseDistCard}>
+              <View style={styles.chartHeader}>
+                <Ionicons name="pie-chart-outline" size={16} color="#0284C7" />
+                <Text style={styles.chartTitle}>Study Time by Course</Text>
+              </View>
+
+              {focusCourseStats.map((cs) => {
+                const totalCourseStudy = focusStats?.total_seconds || 1;
+                const coursePct = Math.min(100, Math.round((cs.total_seconds / totalCourseStudy) * 100));
+
+                return (
+                  <View key={cs.course_id} style={styles.courseDistRow}>
+                    <View style={styles.courseDistHeader}>
+                      <Text style={styles.courseDistName} numberOfLines={1}>
+                        {cs.course_name}
+                      </Text>
+                      <Text style={styles.courseDistTime}>
+                        {formatMinutesOrHours(cs.total_seconds)} ({coursePct}%)
+                      </Text>
+                    </View>
+                    <View style={styles.courseDistTrack}>
+                      <View style={[styles.courseDistFill, { width: `${coursePct}%` }]} />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
 
           {/* 8. COURSE PROGRESS */}
           <View style={styles.sectionHeaderRow}>
@@ -556,8 +712,220 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
     marginTop: 6,
+  },
+  viewHistoryLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  focusStatCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  focusCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  focusStatHeaderCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  focusStatHeading: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  focusStatSub: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  launchFocusBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  launchFocusBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  focusMetricsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  focusMetricTile: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  focusTileValue: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: Colors.primary,
+  },
+  focusTileLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.6,
+    marginTop: 3,
+  },
+  focusTileDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#E2E8F0',
+  },
+  focusStatDividerHoriz: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 12,
+  },
+  focusSecondaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  focusSecondaryTile: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  secondaryTileLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  secondaryTileValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginTop: 2,
+  },
+  chartCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  chartTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginLeft: 6,
+  },
+  barChartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 120,
+    paddingTop: 10,
+    paddingHorizontal: 4,
+  },
+  barCol: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: '100%',
+  },
+  barMinsText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 4,
+    minHeight: 12,
+  },
+  barTrack: {
+    width: 16,
+    height: 80,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: {
+    width: '100%',
+    backgroundColor: '#CBD5E1',
+    borderRadius: 8,
+  },
+  barFillActive: {
+    backgroundColor: Colors.primary,
+  },
+  barDayLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 6,
+  },
+  courseDistCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  courseDistRow: {
+    marginBottom: 12,
+  },
+  courseDistHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  courseDistName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    flex: 1,
+    marginRight: 8,
+  },
+  courseDistTime: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  courseDistTrack: {
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  courseDistFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 3,
   },
   sectionTitle: {
     fontSize: 12,

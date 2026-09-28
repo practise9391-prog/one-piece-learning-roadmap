@@ -3,7 +3,8 @@ export type ActivityType =
   | 'TOPIC_COMPLETED'
   | 'MODULE_COMPLETED'
   | 'NOTE_CREATED'
-  | 'NOTE_UPDATED';
+  | 'NOTE_UPDATED'
+  | 'STUDY_SESSION_COMPLETED';
 
 export interface LearningActivity {
   id: string;

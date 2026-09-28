@@ -28,6 +28,9 @@ export type RootScreen =
   | 'Motivation'
   | 'DailyLearning'
   | 'Achievements'
+  | 'FocusMode'
+  | 'FocusHistory'
+  | 'FocusSettings'
   | 'DatabaseTest';
 
 export interface NavigationState {

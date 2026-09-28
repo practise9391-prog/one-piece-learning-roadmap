@@ -9,3 +9,4 @@ export * from './News';
 export * from './Motivation';
 export * from './Settings';
 export * from './Notification';
+export * from './Focus';

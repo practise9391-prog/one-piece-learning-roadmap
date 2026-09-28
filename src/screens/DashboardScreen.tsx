@@ -18,6 +18,8 @@ import { dashboardService, OverallProgressStats, CurrentLearningItem } from '../
 import { Course } from '../models/Course';
 import { UserProfile, AVATAR_OPTIONS } from '../models/Settings';
 import { settingsRepository } from '../repositories/SettingsRepository';
+import { studySessionRepository } from '../repositories/StudySessionRepository';
+import { ActiveFocusBanner } from '../components/focus/ActiveFocusBanner';
 import { Colors } from '../theme/colors';
 
 export const DashboardScreen: React.FC = () => {
@@ -27,21 +29,34 @@ export const DashboardScreen: React.FC = () => {
   const [currentLearning, setCurrentLearning] = useState<CurrentLearningItem | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [todayStudySeconds, setTodayStudySeconds] = useState<number>(0);
+  const [showFocusCard, setShowFocusCard] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const loadDashboardData = useCallback(async () => {
     try {
-      const [fetchedStats, fetchedCurrent, fetchedCourses, fetchedProfile] = await Promise.all([
+      const [
+        fetchedStats,
+        fetchedCurrent,
+        fetchedCourses,
+        fetchedProfile,
+        fetchedTodayStudy,
+        fetchedFocusSettings,
+      ] = await Promise.all([
         dashboardService.getOverallStats(),
         dashboardService.getCurrentLearningItem(),
         roadmapService.getCourses(),
         settingsRepository.getUserProfile(),
+        studySessionRepository.getTodayStudyTime(),
+        studySessionRepository.getFocusSettings(),
       ]);
       setStats(fetchedStats);
       setCurrentLearning(fetchedCurrent);
       setCourses(fetchedCourses);
       setUserProfile(fetchedProfile);
+      setTodayStudySeconds(fetchedTodayStudy);
+      setShowFocusCard(fetchedFocusSettings.show_dashboard_card);
     } catch (err) {
       console.error('Failed to load dashboard data from SQLite:', err);
     } finally {
@@ -101,6 +116,9 @@ export const DashboardScreen: React.FC = () => {
             />
           }
         >
+          {/* ACTIVE FOCUS BANNER */}
+          <ActiveFocusBanner />
+
           {/* 1. HERO SECTION */}
           <View style={styles.heroCard}>
             <View style={styles.heroTopRow}>
@@ -263,6 +281,18 @@ export const DashboardScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.quickCard}
+              onPress={() => navigate('FocusMode')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickIconCircle, { backgroundColor: '#F0F9FF' }]}>
+                <Ionicons name="timer-outline" size={22} color="#0284C7" />
+              </View>
+              <Text style={styles.quickLabel}>Focus</Text>
+              <Text style={styles.quickSub}>Study Timer</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
               onPress={() => navigate('PracticeLinks')}
               activeOpacity={0.8}
             >
@@ -273,6 +303,72 @@ export const DashboardScreen: React.FC = () => {
               <Text style={styles.quickSub}>Code Arena</Text>
             </TouchableOpacity>
           </View>
+
+          {/* FOCUS TODAY CARD */}
+          {showFocusCard ? (
+            <View style={{ marginBottom: 20 }}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionHeaderTitle}>🎯 FOCUS TODAY</Text>
+                <TouchableOpacity onPress={() => navigate('FocusHistory')} activeOpacity={0.7}>
+                  <Text style={styles.viewAllText}>History ›</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.focusTodayCard}>
+                <View style={styles.focusCardHeader}>
+                  <View style={styles.focusCrest}>
+                    <Ionicons name="timer" size={24} color="#0284C7" />
+                  </View>
+                  <View style={styles.focusTextCol}>
+                    <Text style={styles.focusTitle}>Daily Study Voyage</Text>
+                    <Text style={styles.focusSubtitle}>
+                      {todayStudySeconds > 0
+                        ? `${Math.round(todayStudySeconds / 60)} min completed today`
+                        : 'Start your first focus session today.'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.focusStartBtn}
+                    onPress={() => navigate('FocusMode')}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="play" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.focusStartBtnText}>START FOCUS</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {todayStudySeconds > 0 ? (
+                  <View style={styles.focusStatRow}>
+                    <View style={styles.focusStatCol}>
+                      <Text style={styles.focusStatVal}>{Math.round(todayStudySeconds / 60)} min</Text>
+                      <Text style={styles.focusStatLbl}>STUDY TIME</Text>
+                    </View>
+                    <View style={styles.focusStatDivider} />
+                    <View style={styles.focusStatCol}>
+                      <Text style={styles.focusStatVal}>60 min</Text>
+                      <Text style={styles.focusStatLbl}>GOAL</Text>
+                    </View>
+                    <View style={styles.focusStatDivider} />
+                    <View style={styles.focusStatCol}>
+                      <Text style={[styles.focusStatVal, { color: '#10B981' }]}>
+                        {Math.min(100, Math.round((todayStudySeconds / 3600) * 100))}%
+                      </Text>
+                      <Text style={styles.focusStatLbl}>PROGRESS</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                <View style={styles.focusTrack}>
+                  <View
+                    style={[
+                      styles.focusFill,
+                      { width: `${Math.min(100, Math.round((todayStudySeconds / 3600) * 100))}%` },
+                    ]}
+                  />
+                </View>
+              </View>
+            </View>
+          ) : null}
 
           {/* 4. OVERALL PROGRESS CARD */}
           <View style={styles.sectionHeaderRow}>
@@ -764,5 +860,100 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     minWidth: 32,
     textAlign: 'right',
+  },
+  // FOCUS TODAY CARD STYLES
+  focusTodayCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  focusCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  focusCrest: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  focusTextCol: {
+    flex: 1,
+  },
+  focusTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  focusSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  focusStartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  focusStartBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  focusStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  focusStatCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  focusStatVal: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  focusStatLbl: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94A3B8',
+    marginTop: 1,
+    letterSpacing: 0.5,
+  },
+  focusStatDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#E2E8F0',
+  },
+  focusTrack: {
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  focusFill: {
+    height: '100%',
+    backgroundColor: '#0284C7',
+    borderRadius: 3,
   },
 });

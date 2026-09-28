@@ -59,7 +59,8 @@ export type AchievementCategory =
   | 'MODULES'
   | 'COURSES'
   | 'PRACTICE'
-  | 'NOTES';
+  | 'NOTES'
+  | 'FOCUS';
 
 export interface Achievement {
   id: string;
@@ -74,15 +75,7 @@ export interface Achievement {
   created_at: string;
 }
 
-export interface StudySession {
-  id: string;
-  course_id?: string | null;
-  module_id?: string | null;
-  started_at: string;
-  ended_at?: string | null;
-  duration_seconds: number;
-  created_at: string;
-}
+export type { StudySession } from './Focus';
 
 export interface DailySummary {
   topicsCompleted: number;
