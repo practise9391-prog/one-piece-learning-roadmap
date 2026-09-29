@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Module } from '../../models/Module';
 import { Colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 
 export type NodeState = 'locked' | 'available' | 'completed';
 
@@ -34,10 +35,16 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
   onPress,
   onPressLocked,
 }) => {
+  const { reducedMotion } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
+    if (reducedMotion) {
+      pulseAnim.setValue(1);
+      glowAnim.setValue(1);
+      return;
+    }
     if (state === 'available') {
       const pulseLoop = Animated.loop(
         Animated.sequence([

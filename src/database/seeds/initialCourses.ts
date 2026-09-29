@@ -136,5 +136,29 @@ export const INITIAL_COURSES: InitialCourseSeed[] = [
     theme: 'javascript',
     order_index: 16,
   },
+  {
+    id: 'system_design',
+    name: 'System Design',
+    description: 'Master large-scale system architecture: L0 to L60, client-server, distributed systems, caching, scaling, and interview case studies.',
+    icon: 'git-network-outline',
+    theme: 'system_design',
+    order_index: 17,
+  },
+  {
+    id: 'react',
+    name: 'React',
+    description: 'Component architecture, Hooks, State management, TanStack Query, Next.js, and Full-Stack production apps.',
+    icon: 'react',
+    theme: 'react',
+    order_index: 18,
+  },
+  {
+    id: 'algorithms',
+    name: 'Algorithms',
+    description: 'Master algorithm patterns, foundations, search/sort, graph flow, DP, competitive programming & visual debugging.',
+    icon: 'graph-outline',
+    theme: 'algorithms',
+    order_index: 19,
+  },
 ];
 

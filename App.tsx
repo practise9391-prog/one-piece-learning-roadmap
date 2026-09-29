@@ -1,22 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProvider } from './src/navigation/NavigationContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ThemeProvider } from './src/theme/ThemeContext';
+import { ToastProvider } from './src/components/common/GlobalToast';
+import { AppSplashScreen } from './src/components/common/AppSplashScreen';
+import { AppOnboardingModal } from './src/components/common/AppOnboardingModal';
 import { dbManager } from './src/database/DatabaseManager';
+import { settingsRepository } from './src/repositories/SettingsRepository';
 import { Colors } from './src/theme/colors';
 
 export default function App() {
   const [dbReady, setDbReady] = useState<boolean>(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [splashFinished, setSplashFinished] = useState<boolean>(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
   const initDatabase = async () => {
     try {
       setDbError(null);
       await dbManager.getDatabase();
       setDbReady(true);
+
+      // Check onboarding state from SQLite
+      try {
+        const hasSeen = await settingsRepository.getSetting('has_seen_onboarding', 'false');
+        if (hasSeen !== 'true') {
+          setShowOnboarding(true);
+        }
+      } catch (e) {
+        console.warn('[App] Check onboarding error:', e);
+      }
 
       // Restore and verify notification schedules on launch
       import('./src/services/NotificationService').then(({ notificationService }) => {
@@ -33,6 +49,15 @@ export default function App() {
   useEffect(() => {
     initDatabase();
   }, []);
+
+  const handleFinishOnboarding = async () => {
+    setShowOnboarding(false);
+    try {
+      await settingsRepository.setSetting('has_seen_onboarding', 'true');
+    } catch (e) {
+      console.warn('Failed to save onboarding completed state:', e);
+    }
+  };
 
   if (dbError) {
     return (
@@ -54,30 +79,33 @@ export default function App() {
     );
   }
 
-  if (!dbReady) {
-    return (
-      <SafeAreaView style={styles.centerContainer}>
-        <View style={styles.loadingBox}>
-          <View style={styles.skullBadge}>
-            <Ionicons name="compass" size={44} color={Colors.secondary} />
-          </View>
-          <Text style={styles.loadingTitle}>One Piece Learning Roadmap</Text>
-          <Text style={styles.loadingSubtitle}>Setting Sail on the Grand Line...</Text>
-          <ActivityIndicator size="large" color={Colors.primary} style={styles.spinner} />
-          <Text style={styles.loadingDetail}>Initializing local SQLite database</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <ThemeProvider>
-      <SafeAreaView style={styles.appContainer}>
-        <StatusBar style="light" />
-        <NavigationProvider>
-          <AppNavigator />
-        </NavigationProvider>
-      </SafeAreaView>
+      <ToastProvider>
+        <SafeAreaView style={styles.appContainer}>
+          <StatusBar style="light" />
+          <NavigationProvider>
+            <AppNavigator />
+          </NavigationProvider>
+
+          {/* First-time onboarding modal */}
+          {showOnboarding && splashFinished && (
+            <AppOnboardingModal
+              visible={showOnboarding}
+              onFinish={handleFinishOnboarding}
+            />
+          )}
+
+          {/* Full-screen initial opening splash with real initialization state */}
+          {!splashFinished && (
+            <AppSplashScreen
+              isReady={dbReady}
+              statusMessage={dbReady ? 'Ready! Welcome aboard Captain.' : 'Preparing your learning journey...'}
+              onFinish={() => setSplashFinished(true)}
+            />
+          )}
+        </SafeAreaView>
+      </ToastProvider>
     </ThemeProvider>
   );
 }
@@ -93,41 +121,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-  },
-  loadingBox: {
-    alignItems: 'center',
-  },
-  skullBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 179, 0, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 179, 0, 0.4)',
-    marginBottom: 20,
-  },
-  loadingTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  loadingSubtitle: {
-    fontSize: 14,
-    color: Colors.secondary,
-    fontWeight: '600',
-    marginTop: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  spinner: {
-    marginVertical: 24,
-  },
-  loadingDetail: {
-    fontSize: 12,
-    color: '#94A3B8',
   },
   errorBox: {
     alignItems: 'center',

@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppShell } from '../../components/navigation/AppShell';
-import { useAppNavigation } from '../../navigation/NavigationContext';
 import { useNotificationsViewModel } from '../../hooks/useNotificationsViewModel';
 import { SettingsSection } from '../../components/settings';
 import {
@@ -21,20 +20,26 @@ import {
 import { useTheme } from '../../theme/ThemeContext';
 
 export const NotificationSettingsScreen: React.FC = () => {
-  const { navigate } = useAppNavigation();
   const {
     preferences,
     permissionStatus,
     isPermissionGranted,
+    history,
     loading,
     testSending,
     requestPermission,
     toggleMasterNotifications,
+    updateSound,
+    updateVibration,
     updateLearningReminder,
-    updateGoalReminder,
+    updateMultipleStudyTimes,
+    updateAdvanceReminderMinutes,
+    updateStudyAlarm,
+    updateMorningPlanReminder,
+    updateEveningUnfinishedReminder,
+    updateWeeklyReminder,
+    updateMonthlyReminder,
     updateStreakReminder,
-    updatePracticeReminder,
-    updateMotivationReminder,
     sendTestNotification,
     openSystemSettings,
   } = useNotificationsViewModel();
@@ -52,300 +57,490 @@ export const NotificationSettingsScreen: React.FC = () => {
   };
 
   const handleSaveTime = async (time24: string) => {
+    if (!activePickerKey) return;
+
     switch (activePickerKey) {
       case 'learning':
         await updateLearningReminder(preferences?.learning_reminder_enabled ?? true, time24);
         break;
-      case 'goal':
-        await updateGoalReminder(preferences?.goal_reminder_enabled ?? true, time24);
+      case 'morning_study':
+        await updateMultipleStudyTimes({ morningTime: time24 });
+        break;
+      case 'afternoon_study':
+        await updateMultipleStudyTimes({ afternoonTime: time24 });
+        break;
+      case 'evening_study':
+        await updateMultipleStudyTimes({ eveningTime: time24 });
+        break;
+      case 'alarm':
+        await updateStudyAlarm({ time: time24 });
+        break;
+      case 'morning_plan':
+        await updateMorningPlanReminder(preferences?.morning_plan_reminder_enabled ?? true, time24);
+        break;
+      case 'evening_unfinished':
+        await updateEveningUnfinishedReminder(preferences?.evening_unfinished_reminder_enabled ?? true, time24);
+        break;
+      case 'weekly':
+        await updateWeeklyReminder(preferences?.weekly_reminder_enabled ?? true, undefined, time24);
+        break;
+      case 'monthly':
+        await updateMonthlyReminder(preferences?.monthly_reminder_enabled ?? true, time24);
         break;
       case 'streak':
         await updateStreakReminder(preferences?.streak_reminder_enabled ?? true, time24);
         break;
-      case 'practice':
-        await updatePracticeReminder(preferences?.practice_reminder_enabled ?? true, time24);
-        break;
-      case 'motivation':
-        await updateMotivationReminder(preferences?.motivation_notification_enabled ?? true, time24);
+      default:
         break;
     }
+    setActivePickerKey(null);
   };
 
-  const handleTestNotification = async () => {
-    const success = await sendTestNotification();
-    if (success) {
-      Alert.alert(
-        'Test Notification Sent',
-        'Check your Android notification shade! Tapping it will bring you directly to the deck.'
-      );
-    } else {
-      Alert.alert(
-        'Permission Required',
-        'Notification permission is disabled on your device. Please grant permission to receive test alerts.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: openSystemSettings },
-        ]
-      );
-    }
-  };
+  const masterEnabled = preferences?.notifications_enabled ?? true;
 
-  if (loading) {
+  if (loading || !preferences) {
     return (
-      <AppShell title="NOTIFICATIONS">
-        <View style={styles.centerBox}>
+      <AppShell title="Notifications">
+        <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Loading reminder engine...
+            Loading notification preferences...
           </Text>
         </View>
       </AppShell>
     );
   }
 
-  const masterEnabled = preferences?.notifications_enabled ?? true;
-
   return (
-    <AppShell title="NOTIFICATIONS">
+    <AppShell title="Notifications">
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Navigation back bar */}
-        <TouchableOpacity
-          style={styles.backRow}
-          onPress={() => navigate('Settings')}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={20} color={theme.colors.primary} />
-          <Text style={[styles.backText, { color: theme.colors.primary }]}>
-            Back to Settings
-          </Text>
-        </TouchableOpacity>
-
-        {/* Header Hero Banner */}
-        <View style={[styles.heroBanner, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={styles.heroLeft}>
-            <View style={[styles.bellBox, { backgroundColor: `${theme.colors.primary}15` }]}>
-              <Ionicons name="notifications" size={26} color={theme.colors.primary} />
+        {/* Permission Explanation & Warning Banner (Section 2 & 32) */}
+        {!isPermissionGranted && (
+          <View style={[styles.permissionBanner, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
+            <View style={styles.bannerHeader}>
+              <Ionicons name="notifications-off-outline" size={24} color="#D97706" />
+              <Text style={styles.bannerTitle}>Enable Study Notifications</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.heroTitle, { color: theme.colors.textPrimary }]}>
-                Learning Reminders
-              </Text>
-              <Text style={[styles.heroSub, { color: theme.colors.textSecondary }]}>
-                Stay on course with your daily learning journey
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Android Permission Status Card */}
-        <View
-          style={[
-            styles.statusCard,
-            {
-              backgroundColor: !isPermissionGranted
-                ? 'rgba(245, 158, 11, 0.1)'
-                : masterEnabled
-                ? 'rgba(16, 185, 129, 0.1)'
-                : 'rgba(100, 116, 139, 0.1)',
-              borderColor: !isPermissionGranted
-                ? '#F59E0B'
-                : masterEnabled
-                ? '#10B981'
-                : '#64748B',
-            },
-          ]}
-        >
-          <View style={styles.statusRow}>
-            <Ionicons
-              name={
-                !isPermissionGranted
-                  ? 'alert-circle'
-                  : masterEnabled
-                  ? 'checkmark-circle'
-                  : 'notifications-off'
-              }
-              size={22}
-              color={!isPermissionGranted ? '#F59E0B' : masterEnabled ? '#10B981' : '#64748B'}
-            />
-            <View style={styles.statusTextCol}>
-              <Text
-                style={[
-                  styles.statusTitle,
-                  { color: !isPermissionGranted ? '#D97706' : masterEnabled ? '#15803D' : '#475569' },
-                ]}
-              >
-                {!isPermissionGranted
-                  ? 'Permission Required'
-                  : masterEnabled
-                  ? 'Notifications Active'
-                  : 'Notifications Paused'}
-              </Text>
-              <Text style={[styles.statusSub, { color: theme.colors.textSecondary }]}>
-                {!isPermissionGranted
-                  ? 'Android permission is needed to deliver scheduled study alerts.'
-                  : masterEnabled
-                  ? 'Scheduled reminders will trigger using Android local alarms.'
-                  : 'All scheduled alarms are paused.'}
-              </Text>
-            </View>
-
-            {!isPermissionGranted && (
+            <Text style={styles.bannerText}>
+              Study reminders help you remember your planned learning sessions and keep your daily voyage on track.
+            </Text>
+            <View style={styles.bannerActions}>
               <TouchableOpacity
-                style={styles.permissionActionBtn}
-                onPress={requestPermission}
-                activeOpacity={0.8}
+                style={[styles.bannerBtnPrimary, { backgroundColor: '#D97706' }]}
+                onPress={async () => {
+                  const granted = await requestPermission();
+                  if (!granted) {
+                    Alert.alert(
+                      'Permission Required',
+                      'Notifications are disabled. Open Android system settings to allow reminders.',
+                      [
+                        { text: 'Not Now', style: 'cancel' },
+                        { text: 'Open Settings', onPress: openSystemSettings },
+                      ]
+                    );
+                  }
+                }}
               >
-                <Text style={styles.permissionActionText}>ALLOW</Text>
+                <Text style={styles.bannerBtnPrimaryText}>Enable Notifications</Text>
               </TouchableOpacity>
-            )}
+              <TouchableOpacity
+                style={styles.bannerBtnSecondary}
+                onPress={openSystemSettings}
+              >
+                <Text style={styles.bannerBtnSecondaryText}>System Settings</Text>
+              </TouchableOpacity>
+            </View>
           </View>
+        )}
+
+        {/* Master Switch Card */}
+        <View style={[styles.masterCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.masterInfo}>
+            <View style={[styles.iconCircle, { backgroundColor: masterEnabled ? `${theme.colors.primary}20` : '#9CA3AF20' }]}>
+              <Ionicons
+                name={masterEnabled ? 'notifications' : 'notifications-off'}
+                size={24}
+                color={masterEnabled ? theme.colors.primary : '#9CA3AF'}
+              />
+            </View>
+            <View style={styles.masterTextWrap}>
+              <Text style={[styles.masterTitle, { color: theme.colors.textPrimary }]}>Master Notifications</Text>
+              <Text style={[styles.masterSubtitle, { color: theme.colors.textSecondary }]}>
+                {masterEnabled ? 'Reminders & alarms active' : 'All reminders paused'}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={masterEnabled}
+            onValueChange={toggleMasterNotifications}
+            trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+            thumbColor="#FFFFFF"
+          />
         </View>
 
-        {/* Master Toggle Section */}
-        <SettingsSection title="Master Controls" icon="toggle-outline">
-          <View style={styles.masterRow}>
-            <View style={styles.masterLeft}>
-              <Ionicons name="power-outline" size={20} color={theme.colors.primary} />
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={[styles.masterTitle, { color: theme.colors.textPrimary }]}>
-                  Enable Reminders
-                </Text>
-                <Text style={[styles.masterSub, { color: theme.colors.textSecondary }]}>
-                  Master switch for all local learning notifications
+        {/* 1. General Preferences Section */}
+        <SettingsSection title="GENERAL NOTIFICATION BEHAVIOR">
+          <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
+            <View style={styles.rowInfo}>
+              <Ionicons name="volume-high-outline" size={20} color={theme.colors.primary} />
+              <View style={styles.rowText}>
+                <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>Sound</Text>
+                <Text style={[styles.rowSubtitle, { color: theme.colors.textSecondary }]}>Play sound with reminders</Text>
+              </View>
+            </View>
+            <Switch
+              value={preferences.sound_enabled}
+              onValueChange={updateSound}
+              disabled={!masterEnabled}
+              trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.rowInfo}>
+              <Ionicons name="radio-outline" size={20} color={theme.colors.primary} />
+              <View style={styles.rowText}>
+                <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>Vibration</Text>
+                <Text style={[styles.rowSubtitle, { color: theme.colors.textSecondary }]}>Vibrate on alert</Text>
+              </View>
+            </View>
+            <Switch
+              value={preferences.vibration_enabled}
+              onValueChange={updateVibration}
+              disabled={!masterEnabled}
+              trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </SettingsSection>
+
+        {/* 2. Study Reminders Section */}
+        <SettingsSection title="DAILY STUDY REMINDERS">
+          <NotificationReminderRow
+            title="Daily Study Reminder"
+            subtitle="Reminds you with today's real study plan missions"
+            icon="book-outline"
+            enabled={preferences.learning_reminder_enabled && masterEnabled}
+            time24={preferences.learning_reminder_time}
+            onToggle={(enabled) => updateLearningReminder(enabled)}
+            onPressTime={() =>
+              openTimePicker('learning', 'Primary Study Reminder Time', preferences.learning_reminder_time)
+            }
+          />
+
+          {/* Multiple Study Times Toggle (Section 5) */}
+          <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
+            <View style={styles.rowInfo}>
+              <Ionicons name="time-outline" size={20} color={theme.colors.primary} />
+              <View style={styles.rowText}>
+                <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>Multiple Study Periods</Text>
+                <Text style={[styles.rowSubtitle, { color: theme.colors.textSecondary }]}>
+                  Split daily study into morning, afternoon, and evening
                 </Text>
               </View>
             </View>
-
             <Switch
-              value={masterEnabled}
-              onValueChange={toggleMasterNotifications}
-              trackColor={{
-                false: theme.colors.divider,
-                true: `${theme.colors.primary}80`,
-              }}
-              thumbColor={masterEnabled ? theme.colors.primary : '#FFFFFF'}
+              value={preferences.multiple_study_times_enabled}
+              onValueChange={(val) => updateMultipleStudyTimes({ enabled: val })}
+              disabled={!masterEnabled}
+              trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
             />
+          </View>
+
+          {preferences.multiple_study_times_enabled && (
+            <View style={styles.subTimesContainer}>
+              <NotificationReminderRow
+                title="Morning Period"
+                subtitle="Early session"
+                icon="sunny-outline"
+                enabled={preferences.morning_study_enabled && masterEnabled}
+                time24={preferences.morning_study_time}
+                onToggle={(val) => updateMultipleStudyTimes({ morningEnabled: val })}
+                onPressTime={() =>
+                  openTimePicker('morning_study', 'Morning Study Time', preferences.morning_study_time)
+                }
+              />
+              <NotificationReminderRow
+                title="Afternoon Period"
+                subtitle="Midday session"
+                icon="partly-sunny-outline"
+                enabled={preferences.afternoon_study_enabled && masterEnabled}
+                time24={preferences.afternoon_study_time}
+                onToggle={(val) => updateMultipleStudyTimes({ afternoonEnabled: val })}
+                onPressTime={() =>
+                  openTimePicker('afternoon_study', 'Afternoon Study Time', preferences.afternoon_study_time)
+                }
+              />
+              <NotificationReminderRow
+                title="Evening Period"
+                subtitle="Night recap session"
+                icon="moon-outline"
+                enabled={preferences.evening_study_enabled && masterEnabled}
+                time24={preferences.evening_study_time}
+                onToggle={(val) => updateMultipleStudyTimes({ eveningEnabled: val })}
+                onPressTime={() =>
+                  openTimePicker('evening_study', 'Evening Study Time', preferences.evening_study_time)
+                }
+              />
+            </View>
+          )}
+
+          {/* Advance Reminder Chips (Section 14 & 15) */}
+          <View style={styles.chipSection}>
+            <Text style={[styles.chipSectionTitle, { color: theme.colors.textSecondary }]}>
+              ADVANCE REMINDER NOTICE
+            </Text>
+            <View style={styles.chipRow}>
+              {[
+                { label: 'None', val: 0 },
+                { label: '5m', val: 5 },
+                { label: '10m', val: 10 },
+                { label: '15m', val: 15 },
+                { label: '30m', val: 30 },
+                { label: '1h', val: 60 },
+              ].map((chip) => {
+                const isSelected = preferences.advance_reminder_minutes === chip.val;
+                return (
+                  <TouchableOpacity
+                    key={chip.val}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: isSelected ? theme.colors.primary : theme.colors.surface,
+                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                      },
+                    ]}
+                    onPress={() => updateAdvanceReminderMinutes(chip.val)}
+                    disabled={!masterEnabled}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: isSelected ? '#FFFFFF' : theme.colors.textPrimary },
+                      ]}
+                    >
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </SettingsSection>
 
-        {/* Individual Reminders */}
-        {masterEnabled && (
-          <SettingsSection title="Scheduled Reminders" icon="alarm-outline">
-            {/* 1. Daily Learning Reminder */}
-            <NotificationReminderRow
-              icon="book-outline"
-              iconColor="#2563EB"
-              title="Daily Learning Reminder"
-              subtitle="Remind me to continue active course and modules"
-              enabled={preferences?.learning_reminder_enabled ?? true}
-              time24={preferences?.learning_reminder_time ?? '19:00'}
-              onToggle={(val) => updateLearningReminder(val)}
-              onPressTime={() =>
-                openTimePicker('learning', 'Daily Learning Reminder', preferences?.learning_reminder_time ?? '19:00')
-              }
-            />
+        {/* 3. Study Alarm Section (Section 11, 12, 13) */}
+        <SettingsSection title="STUDY ALARM & SNOOZE">
+          <NotificationReminderRow
+            title="Study Alarm"
+            subtitle="High-priority alarm alert at the start of study session"
+            icon="alarm-outline"
+            enabled={preferences.alarm_enabled && masterEnabled}
+            time24={preferences.alarm_time}
+            onToggle={(enabled) => updateStudyAlarm({ enabled })}
+            onPressTime={() => openTimePicker('alarm', 'Study Alarm Time', preferences.alarm_time)}
+          />
 
-            {/* 2. Daily Goal Reminder */}
-            <NotificationReminderRow
-              icon="flag-outline"
-              iconColor="#16A34A"
-              title="Daily Goals Reminder"
-              subtitle="Alerts if today's goals remain incomplete before night"
-              enabled={preferences?.goal_reminder_enabled ?? true}
-              time24={preferences?.goal_reminder_time ?? '20:30'}
-              onToggle={(val) => updateGoalReminder(val)}
-              onPressTime={() =>
-                openTimePicker('goal', 'Daily Goals Reminder', preferences?.goal_reminder_time ?? '20:30')
-              }
-            />
+          {/* Snooze duration selector */}
+          <View style={styles.chipSection}>
+            <Text style={[styles.chipSectionTitle, { color: theme.colors.textSecondary }]}>
+              SNOOZE INTERVAL
+            </Text>
+            <View style={styles.chipRow}>
+              {[
+                { label: '10 min', val: 10 },
+                { label: '20 min', val: 20 },
+                { label: '30 min', val: 30 },
+              ].map((chip) => {
+                const isSelected = preferences.snooze_interval_minutes === chip.val;
+                return (
+                  <TouchableOpacity
+                    key={chip.val}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: isSelected ? '#DC2626' : theme.colors.surface,
+                        borderColor: isSelected ? '#DC2626' : theme.colors.border,
+                      },
+                    ]}
+                    onPress={() => updateStudyAlarm({ snoozeMinutes: chip.val })}
+                    disabled={!masterEnabled}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: isSelected ? '#FFFFFF' : theme.colors.textPrimary },
+                      ]}
+                    >
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </SettingsSection>
 
-            {/* 3. Streak Reminder */}
-            <NotificationReminderRow
-              icon="flame-outline"
-              iconColor="#E53935"
-              title="Streak Protection Reminder"
-              subtitle="Triggered if no learning activity has been logged today"
-              enabled={preferences?.streak_reminder_enabled ?? true}
-              time24={preferences?.streak_reminder_time ?? '21:00'}
-              onToggle={(val) => updateStreakReminder(val)}
-              onPressTime={() =>
-                openTimePicker('streak', 'Streak Protection Reminder', preferences?.streak_reminder_time ?? '21:00')
-              }
-            />
+        {/* 4. Goal Briefings & Progress Reminders */}
+        <SettingsSection title="GOALS & PROGRESS BRIEFINGS">
+          <NotificationReminderRow
+            title="Morning Plan Briefing"
+            subtitle="Summary of today's planned topics and hours"
+            icon="sunny-outline"
+            enabled={preferences.morning_plan_reminder_enabled && masterEnabled}
+            time24={preferences.morning_plan_reminder_time}
+            onToggle={(enabled) => updateMorningPlanReminder(enabled)}
+            onPressTime={() =>
+              openTimePicker('morning_plan', 'Morning Plan Time', preferences.morning_plan_reminder_time)
+            }
+          />
 
-            {/* 4. Practice Reminder */}
-            <NotificationReminderRow
-              icon="code-slash-outline"
-              iconColor="#0284C7"
-              title="Practice Dojo Reminder"
-              subtitle="Alerts if practice questions goal is waiting"
-              enabled={preferences?.practice_reminder_enabled ?? true}
-              time24={preferences?.practice_reminder_time ?? '18:30'}
-              onToggle={(val) => updatePracticeReminder(val)}
-              onPressTime={() =>
-                openTimePicker('practice', 'Practice Dojo Reminder', preferences?.practice_reminder_time ?? '18:30')
-              }
-            />
+          <NotificationReminderRow
+            title="Evening Unfinished Work"
+            subtitle="Gentle check-in if planned topics are incomplete"
+            icon="alert-circle-outline"
+            enabled={preferences.evening_unfinished_reminder_enabled && masterEnabled}
+            time24={preferences.evening_unfinished_reminder_time}
+            onToggle={(enabled) => updateEveningUnfinishedReminder(enabled)}
+            onPressTime={() =>
+              openTimePicker('evening_unfinished', 'Evening Check-in Time', preferences.evening_unfinished_reminder_time)
+            }
+          />
 
-            {/* 5. Daily Motivation */}
-            <NotificationReminderRow
-              icon="sunny-outline"
-              iconColor="#FFB300"
-              title="Daily Motivation Message"
-              subtitle="Morning inspiration dispatch from the Grand Line"
-              enabled={preferences?.motivation_notification_enabled ?? true}
-              time24={preferences?.motivation_notification_time ?? '08:00'}
-              onToggle={(val) => updateMotivationReminder(val)}
-              onPressTime={() =>
-                openTimePicker('motivation', 'Daily Motivation Message', preferences?.motivation_notification_time ?? '08:00')
-              }
-              isLast={true}
-            />
+          <NotificationReminderRow
+            title="Weekly Summary"
+            subtitle={`Recap on ${preferences.weekly_reminder_day} of completed vs planned hours`}
+            icon="calendar-outline"
+            enabled={preferences.weekly_reminder_enabled && masterEnabled}
+            time24={preferences.weekly_reminder_time}
+            onToggle={(enabled) => updateWeeklyReminder(enabled)}
+            onPressTime={() =>
+              openTimePicker('weekly', 'Weekly Summary Time', preferences.weekly_reminder_time)
+            }
+          />
+
+          <NotificationReminderRow
+            title="Monthly Summary"
+            subtitle="Monthly learning percentage & milestone check"
+            icon="pie-chart-outline"
+            enabled={preferences.monthly_reminder_enabled && masterEnabled}
+            time24={preferences.monthly_reminder_time}
+            onToggle={(enabled) => updateMonthlyReminder(enabled)}
+            onPressTime={() =>
+              openTimePicker('monthly', 'Monthly Summary Time', preferences.monthly_reminder_time)
+            }
+          />
+
+          <NotificationReminderRow
+            title="Streak Protection"
+            subtitle="Alerts you before midnight if your learning streak is at risk"
+            icon="flame-outline"
+            enabled={preferences.streak_reminder_enabled && masterEnabled}
+            time24={preferences.streak_reminder_time}
+            onToggle={(enabled) => updateStreakReminder(enabled)}
+            onPressTime={() =>
+              openTimePicker('streak', 'Streak Alert Time', preferences.streak_reminder_time)
+            }
+          />
+        </SettingsSection>
+
+        {/* 5. Testing & Preview Section (Section 37 & 38) */}
+        <SettingsSection title="TEST NOTIFICATIONS">
+          <View style={styles.testButtonsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.testBtn,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary },
+              ]}
+              onPress={() => sendTestNotification(false)}
+              disabled={testSending || !masterEnabled}
+            >
+              <Ionicons name="notifications-outline" size={20} color={theme.colors.primary} />
+              <Text style={[styles.testBtnText, { color: theme.colors.primary }]}>
+                {testSending ? 'Sending...' : 'Test Study Reminder'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.testBtn,
+                { backgroundColor: theme.colors.surface, borderColor: '#DC2626' },
+              ]}
+              onPress={() => sendTestNotification(true)}
+              disabled={testSending || !masterEnabled}
+            >
+              <Ionicons name="alarm-outline" size={20} color="#DC2626" />
+              <Text style={[styles.testBtnText, { color: '#DC2626' }]}>
+                {testSending ? 'Sending...' : 'Test Study Alarm'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SettingsSection>
+
+        {/* 6. Notification History Preview (Section 23) */}
+        {history.length > 0 && (
+          <SettingsSection title="RECENT NOTIFICATION LOG">
+            {history.slice(0, 5).map((item) => (
+              <View key={item.id} style={[styles.historyRow, { borderBottomColor: theme.colors.border }]}>
+                <View style={styles.historyInfo}>
+                  <Text style={[styles.historyTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.historyMessage, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                    {item.message}
+                  </Text>
+                  <Text style={[styles.historyDate, { color: theme.colors.textSecondary }]}>
+                    {item.created_at.slice(0, 16).replace('T', ' ')}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor:
+                        item.status === 'OPENED'
+                          ? '#D1FAE5'
+                          : item.status === 'SNOOZED'
+                          ? '#FEF3C7'
+                          : '#E0E7FF',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      {
+                        color:
+                          item.status === 'OPENED'
+                            ? '#065F46'
+                            : item.status === 'SNOOZED'
+                            ? '#92400E'
+                            : '#3730A3',
+                      },
+                    ]}
+                  >
+                    {item.status}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </SettingsSection>
         )}
 
-        {/* Section 3: Diagnostic / Test Notification */}
-        <SettingsSection title="Testing & Verification" icon="shield-checkmark-outline">
-          <View style={styles.testContainer}>
-            <TouchableOpacity
-              style={[styles.testBtn, { backgroundColor: theme.colors.primary }]}
-              onPress={handleTestNotification}
-              disabled={testSending}
-              activeOpacity={0.8}
-            >
-              {testSending ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="paper-plane-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.testBtnText}>SEND TEST NOTIFICATION</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <Text style={[styles.testNote, { color: theme.colors.textSecondary }]}>
-              Triggers a real local Android notification immediately. Tap the notification in your status bar to verify deep-linking.
-            </Text>
-          </View>
-        </SettingsSection>
-
-        {/* Offline & Battery Guarantee Box */}
-        <View style={styles.offlineBox}>
-          <Ionicons name="battery-charging-outline" size={18} color="#10B981" />
-          <Text style={[styles.offlineText, { color: theme.colors.textSecondary }]}>
-            100% Offline-First. Notifications use Android standard alarms. Zero cloud servers, zero background battery drain, and zero data tracking.
-          </Text>
-        </View>
+        {/* Bottom spacing */}
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Time Picker Modal */}
       <TimePickerModal
         visible={activePickerKey !== null}
-        initialTime={activePickerTime}
         title={activePickerTitle}
+        initialTime={activePickerTime}
         onSave={handleSaveTime}
         onClose={() => setActivePickerKey(null)}
       />
@@ -357,148 +552,208 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  contentContainer: {
+  scrollContent: {
     padding: 16,
-    paddingBottom: 40,
   },
-  centerBox: {
+  centerContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    alignItems: 'center',
+    padding: 20,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    fontWeight: '600',
   },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginLeft: 6,
-  },
-  heroBanner: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 14,
-  },
-  heroLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bellBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  heroTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  heroSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  statusCard: {
+  permissionBanner: {
     borderRadius: 12,
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
     marginBottom: 16,
   },
-  statusRow: {
+  bannerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
   },
-  statusTextCol: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
+  bannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#92400E',
   },
-  statusTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+  bannerText: {
+    fontSize: 14,
+    color: '#78350F',
+    lineHeight: 20,
+    marginBottom: 12,
   },
-  statusSub: {
-    fontSize: 11,
-    marginTop: 2,
-    lineHeight: 15,
+  bannerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  permissionActionBtn: {
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  bannerBtnPrimary: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
   },
-  permissionActionText: {
+  bannerBtnPrimaryText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    fontSize: 13,
   },
-  masterRow: {
+  bannerBtnSecondary: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  bannerBtnSecondaryText: {
+    color: '#92400E',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  masterCard: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
   },
-  masterLeft: {
+  masterInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: 12,
   },
-  masterTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  masterSub: {
-    fontSize: 12,
+  masterTextWrap: {
+    flex: 1,
+  },
+  masterTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  masterSubtitle: {
+    fontSize: 13,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  rowInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+    gap: 12,
+  },
+  rowText: {
+    flex: 1,
+  },
+  rowTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rowSubtitle: {
+    fontSize: 13,
     marginTop: 2,
   },
-  testContainer: {
-    padding: 16,
+  subTimesContainer: {
+    paddingLeft: 12,
+    marginBottom: 8,
+  },
+  chipSection: {
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  chipSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  testButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 8,
   },
   testBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
+    paddingVertical: 12,
     borderRadius: 10,
-    marginBottom: 10,
+    borderWidth: 1,
+    gap: 8,
   },
   testBtnText: {
-    color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontWeight: '600',
   },
-  testNote: {
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: 'center',
-  },
-  offlineBox: {
+  historyRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  historyInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  historyTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyMessage: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  historyDate: {
+    fontSize: 10,
     marginTop: 4,
   },
-  offlineText: {
-    fontSize: 11,
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 16,
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

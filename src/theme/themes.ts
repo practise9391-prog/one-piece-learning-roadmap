@@ -13,6 +13,7 @@ export interface ThemeColors {
   surface: string;
   surfaceCard: string;
   surfaceHover: string;
+  text: string;
   textPrimary: string;
   textSecondary: string;
   textTertiary: string;
@@ -56,6 +57,7 @@ export const OceanTheme: AppThemeDefinition = {
     surface: '#1C2541',
     surfaceCard: '#1C2541',
     surfaceHover: '#243257',
+    text: '#F8FAFC',
     textPrimary: '#F8FAFC',
     textSecondary: '#94A3B8',
     textTertiary: '#64748B',
@@ -91,6 +93,7 @@ export const DarkTheme: AppThemeDefinition = {
     surface: '#1E293B',
     surfaceCard: '#1E293B',
     surfaceHover: '#334155',
+    text: '#F8FAFC',
     textPrimary: '#F8FAFC',
     textSecondary: '#94A3B8',
     textTertiary: '#64748B',

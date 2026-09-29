@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { useTheme } from '../../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { StreakMetrics } from '../../repositories/ActivityRepository';
 import { Colors } from '../../theme/colors';
@@ -11,6 +12,17 @@ interface StreakCardProps {
 const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export const StreakCard: React.FC<StreakCardProps> = ({ metrics }) => {
+  const { reducedMotion } = useTheme();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 1.15, duration: 150, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+    ]).start();
+  }, [metrics.currentStreak, reducedMotion, scaleAnim]);
+
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
@@ -19,9 +31,9 @@ export const StreakCard: React.FC<StreakCardProps> = ({ metrics }) => {
         </View>
         <View style={styles.textCol}>
           <Text style={styles.headline}>LEARNING STREAK</Text>
-          <Text style={styles.streakCount}>
+          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}><Text style={styles.streakCount}>
             {metrics.currentStreak} {metrics.currentStreak === 1 ? 'DAY' : 'DAYS'}
-          </Text>
+          </Text></Animated.View>
         </View>
         <View style={styles.badgeBox}>
           <Ionicons name="trophy" size={14} color={Colors.secondary} />

@@ -14,6 +14,7 @@ export const Colors = {
   surfaceHover: '#F1F5F9',     // Slate Tint
   
   // Text Colors
+  text: '#0F172A',
   textPrimary: '#0F172A',      // Captain Dark Slate
   textSecondary: '#475569',    // Navigator Muted Slate
   textTertiary: '#94A3B8',     // Compass Silver
@@ -54,6 +55,9 @@ export const Colors = {
     hindi: { primary: '#EA580C', secondary: '#FED7AA', bg: '#FFF7ED' },
     html: { primary: '#E34F26', secondary: '#FDBA74', bg: '#FFF7ED' },
     css: { primary: '#1572B6', secondary: '#BAE6FD', bg: '#F0F9FF' },
+        system_design: { primary: '#0284C7', secondary: '#38BDF8', bg: '#F0F9FF' },
+    react: { primary: '#00D8FE', secondary: '#61DAFB', bg: '#F0FDFF' },
+    algorithms: { primary: '#10B981', secondary: '#6EE7B7', bg: '#ECFDF5' },
     javascript: { primary: '#CA8A04', secondary: '#FEF08A', bg: '#FEFCE8' },
   } as Record<string, { primary: string; secondary: string; bg: string }>,
 };

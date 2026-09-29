@@ -9,6 +9,8 @@ interface AppShellProps {
   title?: string;
   hideTopBar?: boolean;
   hideBottomBar?: boolean;
+  showBackButton?: boolean;
+  onBackPress?: () => void;
   children: React.ReactNode;
 }
 
@@ -16,12 +18,14 @@ export const AppShell: React.FC<AppShellProps> = ({
   title,
   hideTopBar = false,
   hideBottomBar = false,
+  showBackButton = false,
+  onBackPress,
   children,
 }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {!hideTopBar && <TopAppBar title={title} />}
+        {!hideTopBar && <TopAppBar title={title} showBackButton={showBackButton} onBackPress={onBackPress} />}
         <View style={styles.content}>{children}</View>
         {!hideBottomBar && <BottomNavBar />}
         <DrawerMenu />

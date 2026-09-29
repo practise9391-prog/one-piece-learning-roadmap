@@ -32,6 +32,7 @@ export class ActivityRepository {
     topicId?: string | null;
     activityType: ActivityType;
     activityDate?: string;
+    details?: string;
   }): Promise<void> {
     try {
       const db = await dbManager.getDatabase();

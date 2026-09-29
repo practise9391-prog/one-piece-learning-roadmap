@@ -21,6 +21,15 @@ export class TopicContentService {
     const key = `${courseId.toLowerCase()}_${topicTitle.toLowerCase().trim()}`;
     const normalizedCourse = courseId.toLowerCase();
 
+        if (normalizedCourse === 'system_design') {
+      return this.generateSystemDesignContent(moduleTitle, topicTitle);
+    }
+    if (normalizedCourse === 'react') {
+      return this.generateReactContent(moduleTitle, topicTitle);
+    }
+    if (normalizedCourse === 'algorithms') {
+      return this.generateAlgorithmsContent(moduleTitle, topicTitle);
+    }
     const curated = this.getCuratedContent(key, normalizedCourse, topicTitle);
     if (curated) {
       return curated;
@@ -293,7 +302,131 @@ export class TopicContentService {
     };
   }
 
-  private getAptitudeFormula(topic: string): string {
+  
+  private generateSystemDesignContent(moduleTitle: string, topicTitle: string): TopicContent {
+    const tLower = topicTitle.toLowerCase();
+    const mLower = moduleTitle.toLowerCase();
+
+    let analogyTitle = 'Restaurant Operations & Kitchen Flow';
+    let analogyScenario = 'Customer (Client) places order with Waiter (API Gateway / Load Balancer), who sends it to Kitchen Chefs (App Servers). The Chefs pull pre-chopped ingredients from Countertop (Redis Cache) and store bulk reserves in Basement Walk-in Freezer (Primary Database).';
+    let mapping = [
+      { realWorld: 'Customer Ordering', systemDesign: 'Client Request (Web / iOS / Android)', explanation: 'Initiates request over HTTP/TLS to start work.' },
+      { realWorld: 'Waiter / Head Host', systemDesign: 'Load Balancer / API Gateway', explanation: 'Directs customer to available tables and balances kitchen load.' },
+      { realWorld: 'Countertop Ingredients', systemDesign: 'In-Memory Cache (Redis)', explanation: 'Sub-millisecond retrieval of hot, frequently accessed data.' },
+      { realWorld: 'Basement Storage', systemDesign: 'Persistent Relational DB', explanation: 'Durable, ACID-compliant storage for source-of-truth records.' },
+    ];
+
+    let nodes: any[] = [
+      { id: 'client', label: 'User Client', role: 'Sends request over HTTPS / DNS lookup', type: 'client' },
+      { id: 'cdn', label: 'Edge CDN', role: 'Caches static assets & terminates TLS close to user', type: 'cdn', techExamples: ['Cloudflare', 'CloudFront'] },
+      { id: 'lb', label: 'Load Balancer', role: 'Distributes traffic across backend cluster (Round Robin / Least Conn)', type: 'lb', techExamples: ['Nginx', 'HAProxy', 'AWS ALB'] },
+      { id: 'app', label: 'Application Cluster', role: 'Stateless business logic processing instances', type: 'service', techExamples: ['Node.js', 'Go', 'Python/Django'] },
+      { id: 'cache', label: 'In-Memory Cache', role: 'Sub-millisecond hot data retrieval', type: 'cache', techExamples: ['Redis', 'Memcached'], hitMissInfo: 'Cache Hit Rate Target: >95%' },
+      { id: 'db', label: 'Primary DB + Replicas', role: 'ACID persistent records with read replica scaling', type: 'database', techExamples: ['PostgreSQL', 'MySQL', 'CockroachDB'] },
+    ];
+
+    let tradeOffs = {
+      title: topicTitle + ' Architectural Trade-Offs',
+      optionA: 'Simpler / Monolithic Approach',
+      optionB: 'Distributed / Scaled Approach',
+      comparison: [
+        { criterion: 'Operational Complexity', optionA: 'Low (single codebase, simple deploys)', optionB: 'High (network latency, observability, distributed state)' },
+        { criterion: 'Scalability Limit', optionA: 'Hardware ceiling (Vertical Scaling)', optionB: 'Near-infinite (Horizontal Scale-Out across nodes)' },
+        { criterion: 'Fault Isolation', optionA: 'Bug or crash brings down entire system', optionB: 'Isolated failures; gracefully degrades non-critical tiers' },
+      ],
+      recommendation: 'Begin with standard monolith and relational DB. Introduce caching, load balancing, and queues as concurrency and SLA bottlenecks emerge.',
+    };
+
+    let interviewQuestions = [
+      {
+        question: 'How would you design and scale ' + topicTitle + ' under 100,000 requests/second?',
+        answer: 'Employ multi-tier scaling: edge CDN caching, redundant L4/L7 load balancers, stateless autoscaling application containers, write-back or read-through Redis cluster, and sharded database replicas with connection pooling.',
+        tips: 'Always clarify functional vs non-functional requirements (RPS, latency targets, read/write ratio) before diagramming.',
+      },
+      {
+        question: 'What are the primary single points of failure in this architecture?',
+        answer: 'Single points of failure include an un-replicated database master, an active-passive load balancer without automated DNS failover, or an in-memory cache without sentinel/cluster replication.',
+        tips: 'Highlight multi-AZ redundancy and automated health check failovers.',
+      },
+    ];
+
+    if (tLower.includes('cache') || tLower.includes('redis') || tLower.includes('memcached')) {
+      analogyTitle = 'Restaurant Kitchen Spice Rack';
+      analogyScenario = 'A chef places the top 5 spices directly on the cooking counter. They only walk to the deep walk-in pantry if a recipe calls for an unusual spice.';
+      mapping = [
+        { realWorld: 'Counter Spice Rack', systemDesign: 'Redis In-Memory Cache', explanation: 'Sub-millisecond retrieval of hot data directly from RAM.' },
+        { realWorld: 'Walk-in Pantry', systemDesign: 'Persistent PostgreSQL Database', explanation: 'High-capacity disk storage that is slower to access.' },
+        { realWorld: 'Spice Not on Counter', systemDesign: 'Cache Miss', explanation: 'Fall back to querying primary database and repopulate cache.' },
+      ];
+      tradeOffs = {
+        title: 'Cache-Aside vs Write-Through Caching',
+        optionA: 'Cache-Aside (Lazy Loading)',
+        optionB: 'Write-Through',
+        comparison: [
+          { criterion: 'Data Freshness', optionA: 'Potential stale data until TTL expires', optionB: 'Always synchronized with DB' },
+          { criterion: 'Write Latency', optionA: 'Fast (single write to database)', optionB: 'Higher (dual write to Cache & DB)' },
+          { criterion: 'Cache Churn', optionA: 'Only requested data cached', optionB: 'All written data cached, even if unread' },
+        ],
+        recommendation: 'Use Cache-Aside for read-heavy workloads where slight staleness is tolerable. Use Write-Through for financial ledgers or inventory counts.',
+      };
+    } else if (tLower.includes('queue') || tLower.includes('kafka') || tLower.includes('async') || tLower.includes('event')) {
+      analogyTitle = 'Restaurant Kitchen Order Carousel';
+      analogyScenario = 'Waiters clip order tickets onto a revolving carousel. Cooks pull tickets off one by one at their own pace. Waiters do not wait in the kitchen until food is cooked.';
+      mapping = [
+        { realWorld: 'Waiter placing ticket', systemDesign: 'Message Producer', explanation: 'Publishes event to queue without waiting for consumer execution.' },
+        { realWorld: 'Order Carousel', systemDesign: 'Message Broker (Kafka / RabbitMQ)', explanation: 'Buffers tasks durably even if workers crash or slow down.' },
+        { realWorld: 'Line Cooks cooking', systemDesign: 'Consumer Worker Fleet', explanation: 'Pulls and processes jobs asynchronously in background.' },
+      ];
+      nodes = [
+        { id: 'client', label: 'Client Device', role: 'Submits order / file upload request', type: 'client' },
+        { id: 'api', label: 'API Gateway', role: 'Validates request and publishes event', type: 'gateway', techExamples: ['Kong', 'AWS API Gateway'] },
+        { id: 'queue', label: 'Event Log / Queue', role: 'Partitioned message stream with replayability', type: 'queue', techExamples: ['Apache Kafka', 'RabbitMQ'] },
+        { id: 'worker', label: 'Worker Fleet', role: 'Consumes jobs asynchronously with exponential backoff', type: 'service', techExamples: ['Go Workers', 'Celery'] },
+        { id: 'db', label: 'Data Lake / Storage', role: 'Final processed results and audit ledger', type: 'storage', techExamples: ['AWS S3', 'PostgreSQL'] },
+      ];
+    }
+
+    return {
+      title: topicTitle,
+      explanation: topicTitle + ' is a foundational concept in ' + moduleTitle + '. In modern high-throughput architectures, it ensures scalability, high availability, and resilient fault isolation while preventing performance bottlenecks under concurrent traffic.',
+      analogy: {
+        title: analogyTitle,
+        scenario: analogyScenario,
+        mapping: mapping,
+      },
+      architectureFlow: {
+        title: topicTitle + ' Architecture Flow',
+        description: 'Visualizing data traversal, component responsibilities, and request lifecycle for ' + topicTitle + '.',
+        nodes: nodes,
+        flowSteps: [
+          'Client dispatches request to edge CDN / DNS',
+          'Load balancer evaluates health checks and dispatches to app instance',
+          'App server queries in-memory cache tier for sub-millisecond hot response',
+          'On cache miss, app server reads from read-replica / primary database',
+          'Response is serialized, cache populated, and payload returned to user',
+        ],
+      },
+      tradeOffs: tradeOffs,
+      interviewQuestions: interviewQuestions,
+      examples: [
+        'Netflix: Uses microservices, edge routing with Zuul, and distributed caching to stream to 230M+ subscribers.',
+        'Uber: Employs consistent hashing and geospatial index sharding (H3) for millisecond driver dispatch.',
+        'Amazon: Utilizes asynchronous event messaging and saga orchestrators for resilient multi-stage checkout.',
+      ],
+      tips: [
+        'Always ask clarifying questions before jumping into architecture diagrams in an interview.',
+        'State functional vs non-functional requirements (e.g. latency < 50ms, 99.99% availability).',
+        'State trade-offs explicitly: there is no single perfect architecture, only optimal trade-offs.',
+      ],
+      importantPoints: [
+        topicTitle + ' eliminates single points of failure and decouples architectural boundaries.',
+        'Decoupled components allow independent horizontal scaling and localized deployment rollbacks.',
+        'Design for failure: implement circuit breakers, timeouts, and rate limits around every network call.',
+      ],
+    };
+  }
+
+private getAptitudeFormula(topic: string): string {
     const t = topic.toLowerCase();
     if (t.includes('percentage')) return 'Percentage Change = [(Final - Initial) / Initial] × 100\nSuccessive Change = A + B + (A × B)/100';
     if (t.includes('profit') || t.includes('discount')) return 'Profit% = (Profit / CP) × 100\nSP = CP × (100 + P%)/100\nDiscount% = (Discount / MP) × 100';
@@ -345,6 +478,247 @@ export class TopicContentService {
         return `// Learning: ${topicTitle}\nfunction demonstrate_${cleanTopic}() {\n  console.log("Exploring ${topicTitle}");\n  return { status: "Mastered", topic: "${topicTitle}" };\n}\n\ndemonstrate_${cleanTopic}();`;
     }
   }
+
+  private generateReactContent(moduleTitle: string, topicTitle: string): TopicContent {
+    const cleanTitle = topicTitle.replace(/^[0-9]+\.\s*/, '').trim();
+    
+    return {
+      title: topicTitle,
+      explanation: `${cleanTitle} is a core foundation of modern React application development in ${moduleTitle}. In React's component-driven paradigm, it enables building modular, performant, declarative, and scalable user interfaces.`,
+      elif5Story: `Imagine building a LEGO pirate ship. Instead of carving the whole ship out of a single giant block of wood, you build tiny modular bricks (cannons, sails, steering wheel). ${cleanTitle} is like the magic instruction manual that tells each brick how to look and update whenever the weather changes, without rebuilding the whole ship!`,
+      analogy: {
+        title: `${cleanTitle} in Real Life`,
+        scenario: `Think of a restaurant kitchen display system. When a waiter inputs an order, the screen updates only the specific table row instead of wiping the entire whiteboard and rewriting everything from scratch.`,
+        mapping: [
+          { realWorld: 'Customer Order', systemDesign: 'Props / Event', explanation: 'Incoming data or interaction that triggers an update.' },
+          { realWorld: 'Kitchen Screen', systemDesign: 'Virtual DOM & React Fiber', explanation: 'Efficient in-memory representation that calculates minimum changes.' },
+          { realWorld: 'Chef Preparing Dish', systemDesign: 'Component Rendering & DOM Paint', explanation: 'The actual browser DOM mutation and pixel rendering.' }
+        ]
+      },
+      codeSnippet: {
+        language: 'javascript',
+        code: `import React, { useState, useEffect } from 'react';\n\n// Practical demonstration of ${cleanTitle}\nexport function ${cleanTitle.replace(/[^a-zA-Z0-9]/g, '')}Example() {\n  const [active, setActive] = useState(true);\n  \n  return (\n    <div className="p-4 border rounded shadow-sm">\n      <h2 className="text-lg font-bold">${cleanTitle} Demo</h2>\n      <p>Status: {active ? 'Active' : 'Paused'}</p>\n      <button \n        onClick={() => setActive(!active)}\n        className="mt-2 px-3 py-1 bg-blue-500 text-white rounded"\n      >\n        Toggle State\n      </button>\n    </div>\n  );\n}`,
+        output: `${cleanTitle} Demo\nStatus: Active\n[Toggle State Button]`
+      },
+      internalMechanics: `Under the hood, React processes ${cleanTitle} through the Fiber reconciler. During the render phase, React constructs a workInProgress Fiber tree, compares it against the current Fiber tree (reconciliation diffing), and flags dirty nodes. In the commit phase, React applies only the calculated DOM mutations synchronously, followed by passive effect flushing in microtasks.`,
+      commonMistakes: [
+        {
+          mistake: `Directly mutating state variables instead of using setter functions or immutable copies.`,
+          correction: `Always return a new object or array: setCount(prev => prev + 1) or setItems([...items, newItem]).`,
+          explanation: `React uses shallow reference equality (Object.is) to detect changes. Mutating existing memory references causes React to skip re-rendering.`
+        },
+        {
+          mistake: `Missing dependencies in hook dependency arrays or ignoring cleanup functions.`,
+          correction: `Include all variables used inside useEffect/useCallback/useMemo, and return a cleanup function () => abortController.abort() for subscriptions.`,
+          explanation: `Stale closures will capture obsolete variables from earlier render cycles, leading to subtle race conditions.`
+        }
+      ],
+      practiceTasksList: [
+        `Task 1: Build a minimal standalone sandbox implementing ${cleanTitle}.`,
+        `Task 2: Handle edge cases (empty states, loading spinners, network timeouts).`,
+        `Task 3: Refactor the component to extract reusable sub-components.`,
+        `Task 4: Add prop validation or TypeScript type safety interfaces.`,
+        `Task 5: Write a unit test using React Testing Library verifying user click and render.`
+      ],
+      miniProject: {
+        title: `${cleanTitle} Mini Application`,
+        description: `Build a production-ready interactive widget demonstrating ${cleanTitle} with responsive styles, error boundary protection, and local persistence.`,
+        keySteps: [
+          'Initialize component hierarchy with clean TypeScript interfaces',
+          'Implement state transitions and event listeners',
+          'Optimize render cycles with memoization where appropriate',
+          'Add accessible ARIA attributes and keyboard navigation'
+        ]
+      },
+      interviewQuestions: [
+        {
+          question: `How does ${cleanTitle} relate to React's one-way data flow and Virtual DOM?`,
+          answer: `${cleanTitle} adheres to unidirectional data flow by ensuring data descends from parent to child through props, while state modifications flow upward via callbacks or global dispatchers. The Virtual DOM computes diffs efficiently without touching the real DOM repeatedly.`,
+          tips: 'Mention the difference between reconciliation (render phase) and commit phase.'
+        },
+        {
+          question: `What are common performance pitfalls associated with ${cleanTitle}?`,
+          answer: `Frequent unnecessary re-renders of child subtrees, creating inline object/function literals on every render, and running un-memoized heavy computations. Solved with React.memo, useMemo, and useCallback.`,
+          tips: 'Highlight that premature optimization should be avoided unless profiling shows actual frame drops.'
+        }
+      ],
+      examples: [
+        'E-commerce Product Filtering & Cart Drawer',
+        'Real-time Chat Notification Badge & Message Feed',
+        'Interactive Multi-step Wizard Form with Zod Validation'
+      ],
+      tips: [
+        'Keep state as local as possible; only lift state up when multiple siblings need synchronized data.',
+        'Use TypeScript interfaces for props to catch contract mismatches at build time.',
+        'Profile your React components using React DevTools Profiler to identify wasted renders.'
+      ],
+      importantPoints: [
+        `${cleanTitle} is declarative: you describe what the UI should look like, and React handles DOM updates.`,
+        'Never mutate state directly; treat state as immutable snapshots over time.',
+        'Effects are escape hatches for synchronizing with external systems, not for computing state.'
+      ]
+    };
+  }
+
+  private generateAlgorithmsContent(moduleTitle: string, topicTitle: string): TopicContent {
+    return {
+      title: topicTitle,
+      explanation: `${topicTitle} is a foundational algorithmic technique in ${moduleTitle}. In computer science and competitive programming, it guarantees provable correctness, optimizes asymptotic time complexity, and avoids brute-force computational bottlenecks.`,
+      elif5Story: `Imagine looking for your favorite toy in a toy box with 100 toys lined up in order from smallest to biggest. Instead of checking every single toy one by one from left to right, you look right in the middle! If that toy is already bigger than what you want, you throw away the whole right half without even looking at them! That is the super-power of smart algorithms like ${topicTitle}.`,
+      analogy: {
+        title: `${topicTitle} Real-World Analogy`,
+        scenario: `Looking up a word in a physical dictionary with 1,000 pages. Nobody reads page 1, then page 2, then page 3. You open near the middle, check the letter, and immediately discard half the dictionary!`,
+        mapping: [
+          { realWorld: 'Opening dictionary at middle', systemDesign: 'Calculating mid = left + (right - left) // 2', explanation: 'Splits remaining search domain into two equal halves.' },
+          { realWorld: 'Discarding irrelevant pages', systemDesign: 'Search space pruning / State reduction', explanation: 'Eliminates candidate space exponentially: N -> N/2 -> N/4 -> 1.' },
+          { realWorld: 'Finding the exact word', systemDesign: 'Target match / Base case termination', explanation: 'Returns index or optimal answer in O(log N) iterations.' }
+        ]
+      },
+      codeSnippet: {
+        language: 'python',
+        code: `# Implementation of ${topicTitle}\ndef solve_${topicTitle.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = left + (right - left) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1\n\n# Example test\nnums = [10, 20, 30, 40, 50, 60, 70, 80, 90]\nprint("Found at index:", solve_${topicTitle.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}(nums, 80))`,
+        output: 'Found at index: 7'
+      },
+      algorithmLabData: {
+        title: `${topicTitle} Visual Simulation`,
+        description: `Step through the execution of ${topicTitle} on a sample array [10, 20, 30, 40, 50, 60, 70, 80, 90] searching for target 80.`,
+        array: [10, 20, 30, 40, 50, 60, 70, 80, 90],
+        target: 80,
+        codeLines: [
+          'left, right = 0, len(arr) - 1',
+          'while left <= right:',
+          '    mid = left + (right - left) // 2',
+          '    if arr[mid] == target: return mid',
+          '    elif arr[mid] < target: left = mid + 1',
+          '    else: right = mid - 1',
+          'return -1'
+        ],
+        steps: [
+          {
+            lineIndex: 0,
+            variables: { left: 0, right: 8, mid: 'undefined', 'arr[mid]': 'undefined', target: 80 },
+            highlightedIndices: [0, 8],
+            action: 'Initialize left pointer at index 0 and right pointer at index 8.'
+          },
+          {
+            lineIndex: 2,
+            variables: { left: 0, right: 8, mid: 4, 'arr[mid]': 50, target: 80 },
+            highlightedIndices: [4],
+            action: 'Calculate mid = 0 + (8 - 0) // 2 = 4. arr[4] is 50.'
+          },
+          {
+            lineIndex: 4,
+            variables: { left: 5, right: 8, mid: 4, 'arr[mid]': 50, target: 80 },
+            highlightedIndices: [5, 8],
+            action: '50 < 80: Target is in right half. Discard indices 0..4. Set left = 5.'
+          },
+          {
+            lineIndex: 2,
+            variables: { left: 5, right: 8, mid: 6, 'arr[mid]': 70, target: 80 },
+            highlightedIndices: [6],
+            action: 'Recalculate mid = 5 + (8 - 5) // 2 = 6. arr[6] is 70.'
+          },
+          {
+            lineIndex: 4,
+            variables: { left: 7, right: 8, mid: 6, 'arr[mid]': 70, target: 80 },
+            highlightedIndices: [7, 8],
+            action: '70 < 80: Target is in right half. Discard indices 5..6. Set left = 7.'
+          },
+          {
+            lineIndex: 2,
+            variables: { left: 7, right: 8, mid: 7, 'arr[mid]': 80, target: 80 },
+            highlightedIndices: [7],
+            action: 'Recalculate mid = 7 + (8 - 7) // 2 = 7. arr[7] is 80.'
+          },
+          {
+            lineIndex: 3,
+            variables: { left: 7, right: 8, mid: 7, 'arr[mid]': 80, target: 80, matched: true },
+            highlightedIndices: [7],
+            action: 'SUCCESS: arr[7] == 80! Target found at index 7.'
+          }
+        ]
+      },
+      approachProgression: [
+        {
+          name: 'Brute Force Linear Scan',
+          type: 'BRUTE_FORCE',
+          complexity: 'Time: O(N) | Space: O(1)',
+          code: 'def linear_scan(arr, target):\n    for i in range(len(arr)):\n        if arr[i] == target:\n            return i\n    return -1',
+          bottleneck: 'Inspects every single element sequentially. For 1 billion elements, requires 1 billion comparisons.',
+          explanation: 'Checks elements one by one without leveraging sorted order or invariants.'
+        },
+        {
+          name: 'Jump / Block Search',
+          type: 'BETTER',
+          complexity: 'Time: O(√N) | Space: O(1)',
+          code: 'def jump_search(arr, target):\n    step = int(len(arr) ** 0.5)\n    prev = 0\n    while arr[min(step, len(arr)) - 1] < target:\n        prev = step\n        step += int(len(arr) ** 0.5)\n        if prev >= len(arr): return -1\n    while arr[prev] < target:\n        prev += 1\n        if prev == min(step, len(arr)): return -1\n    return prev if arr[prev] == target else -1',
+          bottleneck: 'Jumps in fixed steps of √N, which is significantly better than O(N) but still does not achieve logarithmic speed.',
+          explanation: 'Divides the array into blocks of size √N and performs linear search within the matching block.'
+        },
+        {
+          name: 'Logarithmic Binary Search / Optimal',
+          type: 'OPTIMAL',
+          complexity: 'Time: O(log N) | Space: O(1)',
+          code: 'def optimal_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = left + (right - left) // 2\n        if arr[mid] == target: return mid\n        elif arr[mid] < target: left = mid + 1\n        else: right = mid - 1\n    return -1',
+          explanation: 'Halves the search space on every iteration. For 1 billion elements, requires only ~30 comparisons!'
+        }
+      ],
+      complexityAnalysis: {
+        timeBest: 'O(1)',
+        timeAvg: 'O(log N)',
+        timeWorst: 'O(log N)',
+        space: 'O(1)',
+        explanation: 'Best case occurs when target is at the initial midpoint. Average and worst cases halve the search space at each step, yielding T(N) = T(N/2) + O(1) = O(log N) by Master Theorem.'
+      },
+      commonMistakes: [
+        {
+          mistake: 'Using (left + right) // 2 which causes integer overflow in languages with fixed-width integers (C++, Java).',
+          correction: 'Use left + (right - left) // 2 to safely compute the midpoint within integer limits.',
+          explanation: 'If left + right exceeds 2^31 - 1, it wraps around to a negative number.'
+        },
+        {
+          mistake: 'Off-by-one condition errors (e.g. while left < right instead of while left <= right).',
+          correction: 'Ensure termination condition matches your search interval [left, right] closed vs [left, right) half-open.',
+          explanation: 'Exiting when left == right skips checking single-element subarrays.'
+        }
+      ],
+      practiceTasksList: [
+        `Task 1: Implement basic ${topicTitle} and verify on sorted list.`,
+        `Task 2: Handle edge cases: empty array, target smaller than min, target larger than max.`,
+        `Task 3: Adapt the algorithm to find lower_bound (first index >= target).`,
+        `Task 4: Adapt the algorithm to find upper_bound (first index > target).`,
+        `Task 5: Solve a competitive programming problem on Binary Search on Answer.`
+      ],
+      interviewQuestions: [
+        {
+          question: `How do you prove the correctness of ${topicTitle}?`,
+          answer: `Using loop invariants: state the invariant that if target exists in the array, it must lie within the range [left, right]. In the base case, the invariant holds. In the inductive step, discarding mid preserves the invariant. At termination when left > right, the range is empty, proving the target does not exist.`,
+          tips: 'Always mention loop invariants (Initialization, Maintenance, Termination).'
+        },
+        {
+          question: `When can you apply ${topicTitle} to non-sorted sequences?`,
+          answer: `When the function or predicate is monotonic! As long as a condition f(x) produces a contiguous sequence of Falses followed by Trues (or vice-versa), binary search can identify the boundary (Binary Search on Answer).`,
+          tips: 'Mention real problems like Painter Partition, Koko Eating Bananas, or Aggressive Cows.'
+        }
+      ],
+      examples: [
+        'Finding lower bound and upper bound in database B-Trees',
+        'Parametric optimization: finding minimum bandwidth or shipping capacity',
+        'Finding peak elements and square root approximation'
+      ],
+      tips: [
+        'Draw the array and pointer bounds explicitly on paper during a dry run.',
+        'Check base cases: array of size 0, 1, and 2 before submitting.',
+        'Watch for infinite loops caused by left = mid instead of left = mid + 1.'
+      ],
+      importantPoints: [
+        `${topicTitle} achieves exponential reduction of the search space.`,
+        'Logarithmic time O(log N) scales gracefully to trillions of elements.',
+        'Binary search applies beyond arrays to any monotonic decision predicate.'
+      ]
+    };
+  }
+
 }
 
 export const topicContentService = new TopicContentService();

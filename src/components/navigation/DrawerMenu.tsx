@@ -37,6 +37,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'Completed', label: 'Completed', icon: 'checkmark-circle-outline' },
   { id: 'Remaining', label: 'Remaining', icon: 'hourglass-outline' },
   { id: 'PracticeLinks', label: 'Practice', icon: 'code-slash-outline' },
+  { id: 'CodeWorkspace', label: 'Compiler & Debugger', icon: 'terminal-outline' },
   { id: 'News', label: 'News', icon: 'newspaper-outline' },
   { id: 'Motivation', label: 'Motivation', icon: 'flame-outline' },
   { id: 'Settings', label: 'Settings', icon: 'settings-outline' },

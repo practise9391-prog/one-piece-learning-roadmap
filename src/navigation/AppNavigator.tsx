@@ -1,3 +1,4 @@
+import { PageTransitionWrapper } from '../components/common/PageTransitionWrapper';
 import React from 'react';
 import { useAppNavigation } from './NavigationContext';
 import { DashboardScreen } from '../screens/DashboardScreen';
@@ -34,11 +35,22 @@ import { FocusSettingsScreen } from '../screens/settings/FocusSettingsScreen';
 import { TopicSearchScreen } from '../screens/search/TopicSearchScreen';
 import { DatabaseTestScreen } from '../screens/DatabaseTestScreen';
 import { StudyPlanScreen } from '../screens/studyPlan/StudyPlanScreen';
+import { ProgressDashboardScreen } from '../screens/progress/ProgressDashboardScreen';
+import { CourseDetailAnalyticsScreen } from '../screens/progress/CourseDetailAnalyticsScreen';
+import { RewardsDashboardScreen } from '../screens/gamification/RewardsDashboardScreen';
+import { CodingProblemScreen } from '../screens/practice/CodingProblemScreen';
+import { AITutorHomeScreen } from '../screens/ai/AITutorHomeScreen';
+import { AIChatScreen } from '../screens/ai/AIChatScreen';
+import { AISpeakingScreen } from '../screens/ai/AISpeakingScreen';
+import { AIInterviewScreen } from '../screens/ai/AIInterviewScreen';
+import { AIDataSettingsScreen } from '../screens/settings/AIDataSettingsScreen';
+import { InteractiveTopicScreen } from '../screens/learning/InteractiveTopicScreen';
 
 export const AppNavigator: React.FC = () => {
   const { currentScreen } = useAppNavigation();
 
-  switch (currentScreen) {
+  const renderScreen = () => {
+    switch (currentScreen) {
     case 'Courses':
       return <CoursesScreen />;
 
@@ -138,9 +150,49 @@ export const AppNavigator: React.FC = () => {
     case 'DatabaseTest':
       return <DatabaseTestScreen />;
 
+    case 'Progress':
+      return <ProgressDashboardScreen />;
+
+    case 'CourseDetailAnalytics':
+    case 'CourseProgressDetail':
+      return <CourseDetailAnalyticsScreen />;
+
+    case 'Rewards':
+      return <RewardsDashboardScreen />;
+
+    case 'CodingProblem':
+    case 'CodingChallenge':
+    case 'CodeWorkspace':
+      return <CodingProblemScreen />;
+
+    case 'InteractiveTopic':
+      return <InteractiveTopicScreen />;
+
+    case 'AITutorHome':
+      return <AITutorHomeScreen />;
+
+    case 'AIChat':
+      return <AIChatScreen />;
+
+    case 'AISpeaking':
+      return <AISpeakingScreen />;
+
+    case 'AIInterview':
+      return <AIInterviewScreen />;
+
+    case 'AIDataSettings':
+      return <AIDataSettingsScreen />;
+
     case 'Home':
     case 'Dashboard':
     default:
       return <DashboardScreen />;
-  }
+    }
+  };
+
+  return (
+    <PageTransitionWrapper screenKey={currentScreen}>
+      {renderScreen()}
+    </PageTransitionWrapper>
+  );
 };

@@ -5,7 +5,8 @@ export type ActivityType =
   | 'NOTE_CREATED'
   | 'NOTE_UPDATED'
   | 'STUDY_SESSION_COMPLETED'
-  | 'DAILY_TASK_COMPLETED';
+  | 'DAILY_TASK_COMPLETED'
+  | 'PRACTICE_COMPLETED';
 
 export interface LearningActivity {
   id: string;

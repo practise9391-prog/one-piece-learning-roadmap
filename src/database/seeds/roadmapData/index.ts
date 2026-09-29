@@ -1,3 +1,6 @@
+import { systemDesignRoadmap } from './systemDesignRoadmap';
+import { reactRoadmap } from './reactRoadmap';
+import { algorithmsRoadmap } from './algorithmsRoadmap';
 import { CourseRoadmapSeed } from './types';
 import { pythonRoadmap } from './pythonRoadmap';
 import { dsaRoadmap } from './dsaRoadmap';
@@ -15,6 +18,9 @@ import { englishSpeakingRoadmap } from './englishSpeakingRoadmap';
 import { hindiRoadmap } from './skillsRoadmaps';
 
 export * from './types';
+export { systemDesignRoadmap } from './systemDesignRoadmap';
+export { reactRoadmap } from './reactRoadmap';
+export { algorithmsRoadmap } from './algorithmsRoadmap';
 export { aptitudeRoadmap } from './aptitudeRoadmap';
 export { reasoningRoadmap } from './reasoningRoadmap';
 export { verbalEnglishRoadmap } from './verbalEnglishRoadmap';
@@ -37,4 +43,7 @@ export const ALL_COURSE_ROADMAPS: CourseRoadmapSeed[] = [
   htmlRoadmap,
   cssRoadmap,
   javascriptRoadmap,
+  systemDesignRoadmap,
+  reactRoadmap,
+  algorithmsRoadmap,
 ];

@@ -16,6 +16,7 @@ import { useAppNavigation } from '../navigation/NavigationContext';
 import { courseRepository } from '../repositories/CourseRepository';
 import { Course } from '../models/Course';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 export const CourseCompletionScreen: React.FC = () => {
   const { params, goBack, navigate } = useAppNavigation();
@@ -27,6 +28,7 @@ export const CourseCompletionScreen: React.FC = () => {
     completedTopics: number;
     totalNotes: number;
   }>({ totalTopics: 0, completedTopics: 0, totalNotes: 0 });
+  const { reducedMotion } = useTheme();
   const [loading, setLoading] = useState<boolean>(true);
 
   // Animation values
@@ -36,6 +38,11 @@ export const CourseCompletionScreen: React.FC = () => {
   const starsRotateAnim = useRef(new Animated.Value(0)).current;
 
   const triggerCelebrationAnimation = useCallback(() => {
+    if (reducedMotion) {
+      scaleAnim.setValue(1);
+      fadeAnim.setValue(1);
+      return;
+    }
     scaleAnim.setValue(0.4);
     fadeAnim.setValue(0);
     trophyBounceAnim.setValue(0);

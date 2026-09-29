@@ -15,7 +15,7 @@ export class SettingsRepository {
   private db = DatabaseManager.getInstance();
 
   // Helper for reading a key from app_settings
-  private async getSetting(key: string, defaultValue: string): Promise<string> {
+  public async getSetting(key: string, defaultValue: string): Promise<string> {
     const database = await this.db.getDatabase();
     const row = await database.getFirstAsync<{ value: string }>(
       'SELECT value FROM app_settings WHERE key = ?;',
@@ -25,7 +25,7 @@ export class SettingsRepository {
   }
 
   // Helper for saving a key to app_settings
-  private async setSetting(key: string, value: string): Promise<void> {
+  public async setSetting(key: string, value: string): Promise<void> {
     const database = await this.db.getDatabase();
     const now = new Date().toISOString();
     await database.runAsync(

@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../components/Header';
+import { TopicCompletionFeedback } from '../components/learning/TopicCompletionFeedback';
+import { SaveFeedbackIndicator } from '../components/common/SaveFeedbackIndicator';
 import { ProgressBar } from '../components/ProgressBar';
 import {
   TopicContentViewer,
@@ -63,6 +65,19 @@ export const ModuleDetailsScreen: React.FC = () => {
 
   const [incompleteModalVisible, setIncompleteModalVisible] = useState<boolean>(false);
   const [celebrationModalVisible, setCelebrationModalVisible] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [topicFeedback, setTopicFeedback] = useState<{
+    visible: boolean;
+    topicTitle: string;
+    nextTopicTitle?: string;
+    xpEarned: number;
+    nextTopicIndex?: number;
+  }>({
+    visible: false,
+    topicTitle: '',
+    xpEarned: 10,
+  });
+
 
   const [moduleStudySecs, setModuleStudySecs] = useState<number>(0);
   const [topicStudySecs, setTopicStudySecs] = useState<number>(0);
@@ -179,10 +194,27 @@ export const ModuleDetailsScreen: React.FC = () => {
       setModule(result.module);
       setCourse(result.course);
 
-      if (result.module.is_completed) {
-        setCelebrationModalVisible(true);
+      if (result.topic.is_completed) {
+        setSaveStatus('saved');
+        const currIdx = topics.findIndex((t) => t.id === currentTopic.id);
+        const nextTopic = currIdx !== -1 && currIdx < topics.length - 1 ? topics[currIdx + 1] : undefined;
+
+        if (result.module.is_completed) {
+          setCelebrationModalVisible(true);
+        } else {
+          setTopicFeedback({
+            visible: true,
+            topicTitle: currentTopic.title,
+            nextTopicTitle: nextTopic?.title,
+            nextTopicIndex: currIdx + 1,
+            xpEarned: 10,
+          });
+        }
+      } else {
+        setSaveStatus('saved');
       }
     } catch (err) {
+      setSaveStatus('error');
       console.error('Failed to toggle topic completion:', err);
       Alert.alert('Database Error', 'Could not update topic in SQLite.');
     }
@@ -607,6 +639,20 @@ export const ModuleDetailsScreen: React.FC = () => {
         isCourseCompleted={isCourseFullyCompleted}
         onProceedNext={handleProceedToNextModule}
         onDismiss={handleDismissCelebration}
+      />
+      <TopicCompletionFeedback
+        visible={topicFeedback.visible}
+        topicTitle={topicFeedback.topicTitle}
+        nextTopicTitle={topicFeedback.nextTopicTitle}
+        xpEarned={topicFeedback.xpEarned}
+        onContinue={() => {
+          const nextIdx = topicFeedback.nextTopicIndex;
+          setTopicFeedback((prev) => ({ ...prev, visible: false }));
+          if (nextIdx !== undefined && nextIdx < topics.length) {
+            setSelectedTopicIndex(nextIdx);
+          }
+        }}
+        onDismiss={() => setTopicFeedback((prev) => ({ ...prev, visible: false }))}
       />
     </KeyboardAvoidingView>
   );

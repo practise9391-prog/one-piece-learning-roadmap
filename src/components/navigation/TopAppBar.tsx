@@ -7,24 +7,39 @@ import { Colors } from '../../theme/colors';
 interface TopAppBarProps {
   title?: string;
   subtitle?: string;
+  showBackButton?: boolean;
+  onBackPress?: () => void;
 }
 
 export const TopAppBar: React.FC<TopAppBarProps> = ({
   title = 'ONE PIECE LEARNING',
+  showBackButton = false,
+  onBackPress,
 }) => {
-  const { openDrawer, navigate } = useAppNavigation();
+  const { openDrawer, navigate, goBack } = useAppNavigation();
 
   return (
     <View style={styles.container}>
-      {/* Left: Hamburger Icon */}
-      <TouchableOpacity
-        style={styles.iconButton}
-        onPress={openDrawer}
-        activeOpacity={0.7}
-        accessibilityLabel="Open Navigation Menu"
-      >
-        <Ionicons name="menu" size={26} color="#FFFFFF" />
-      </TouchableOpacity>
+      {/* Left: Back or Hamburger Icon */}
+      {showBackButton ? (
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={onBackPress || goBack}
+          activeOpacity={0.7}
+          accessibilityLabel="Go Back"
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={openDrawer}
+          activeOpacity={0.7}
+          accessibilityLabel="Open Navigation Menu"
+        >
+          <Ionicons name="menu" size={26} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       {/* Center: App Title with Nautical Crest */}
       <View style={styles.centerContainer}>

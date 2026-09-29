@@ -90,9 +90,10 @@ export const TopicSearchScreen: React.FC = () => {
 
   const handleOpenTopic = (result: RoadmapSearchResult) => {
     Keyboard.dismiss();
-    navigate('ModuleDetails', {
+    navigate('InteractiveTopic', {
       courseId: result.courseId,
       moduleId: result.moduleId,
+      topicId: result.topicId,
     });
   };
 

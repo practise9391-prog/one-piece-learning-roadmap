@@ -1,10 +1,18 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Course } from '../models/Course';
 import { Colors } from '../theme/colors';
 import { ProgressBar } from './ProgressBar';
 import { OnePieceBadge } from './OnePieceBadge';
+import { getCourseIdentity } from '../theme/courseIdentities';
+import { useTheme } from '../theme/ThemeContext';
 
 interface CourseCardProps {
   course: Course;
@@ -12,78 +20,108 @@ interface CourseCardProps {
 }
 
 export const CourseCard: React.FC<CourseCardProps> = ({ course, onPress }) => {
-  const theme = Colors.courseThemes[course.id] || {
-    primary: Colors.accent,
-    secondary: Colors.accentLight,
-    bg: Colors.surfaceHover,
+  const { reducedMotion } = useTheme();
+  const identity = getCourseIdentity(course.id);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    if (reducedMotion) return;
+    Animated.spring(scaleAnim, {
+      toValue: 0.975,
+      friction: 8,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    if (reducedMotion) return;
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 6,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={() => onPress?.(course)}
-      style={styles.card}
-    >
-      <View style={styles.headerRow}>
-        <View style={styles.leftInfo}>
-          <View style={[styles.iconBox, { backgroundColor: theme.bg }]}>
-            <Ionicons
-              name={(course.icon as keyof typeof Ionicons.glyphMap) || 'book-outline'}
-              size={24}
-              color={theme.primary}
-            />
-          </View>
-          <View style={styles.nameContainer}>
-            <View style={styles.titleRow}>
-              <Text style={styles.courseName}>{course.name}</Text>
-              {course.is_completed && (
-                <View style={styles.completedIconBadge}>
-                  <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-                </View>
-              )}
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => onPress?.(course)}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[
+          styles.card,
+          { borderColor: course.is_completed ? '#10B981' : '#E2E8F0' },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <View style={styles.leftInfo}>
+            <View style={[styles.iconBox, { backgroundColor: identity.bgTint }]}>
+              <Ionicons
+                name={(course.icon as keyof typeof Ionicons.glyphMap) || 'book-outline'}
+                size={24}
+                color={identity.primaryColor}
+              />
             </View>
-            <Text style={styles.islandTag}>Island #{course.order}</Text>
+            <View style={styles.nameContainer}>
+              <View style={styles.titleRow}>
+                <Text style={styles.courseName}>{course.name}</Text>
+                {course.is_completed && (
+                  <View style={styles.completedIconBadge}>
+                    <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+                  </View>
+                )}
+              </View>
+              <View style={styles.tagRow}>
+                <Text style={styles.islandTag}>Island #{course.order}</Text>
+                <Text style={styles.bulletDot}>•</Text>
+                <Text style={[styles.motifBadge, { color: identity.primaryColor }]}>
+                  {identity.badge}
+                </Text>
+              </View>
+            </View>
           </View>
+
+          <OnePieceBadge
+            label={course.is_completed ? 'Mastered' : `${Math.round(course.progress_percentage)}%`}
+            variant={course.is_completed ? 'success' : course.progress_percentage > 0 ? 'ocean' : 'gold'}
+          />
         </View>
 
-        <OnePieceBadge
-          label={course.is_completed ? 'Mastered' : `${Math.round(course.progress_percentage)}%`}
-          variant={course.is_completed ? 'success' : course.progress_percentage > 0 ? 'ocean' : 'gold'}
-        />
-      </View>
-
-      {course.description ? (
-        <Text style={styles.description} numberOfLines={2}>
-          {course.description}
-        </Text>
-      ) : null}
-
-      <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.modulesText}>
-            {course.completed_modules} / {course.total_modules} Modules Completed
+        {course.description ? (
+          <Text style={styles.description} numberOfLines={2}>
+            {course.description}
           </Text>
-          <Text style={styles.percentageText}>
-            {course.progress_percentage.toFixed(0)}%
-          </Text>
+        ) : null}
+
+        <View style={styles.footer}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Curriculum Progress</Text>
+            <Text style={styles.progressText}>
+              {course.completed_modules} / {course.total_modules} Modules
+            </Text>
+          </View>
+
+          <ProgressBar
+            percentage={course.progress_percentage}
+            height={6}
+            color={course.is_completed ? Colors.success : identity.primaryColor}
+          />
         </View>
-        <ProgressBar
-          percentage={course.progress_percentage}
-          color={course.is_completed ? Colors.success : theme.primary}
-        />
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     padding: 16,
-    marginVertical: 6,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -100,11 +138,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 8,
   },
   iconBox: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -120,43 +159,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginRight: 6,
   },
   completedIconBadge: {
-    marginLeft: 2,
+    marginLeft: 6,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
   },
   islandTag: {
     fontSize: 11,
-    fontWeight: '600',
-    color: Colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 2,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  bulletDot: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  motifBadge: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   description: {
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 18,
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  progressSection: {
-    marginTop: 4,
+  footer: {
+    marginTop: 2,
   },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 6,
   },
-  modulesText: {
-    fontSize: 12,
-    fontWeight: '500',
+  progressLabel: {
+    fontSize: 11,
     color: Colors.textSecondary,
+    fontWeight: '600',
   },
-  percentageText: {
-    fontSize: 12,
-    fontWeight: '700',
+  progressText: {
+    fontSize: 11,
     color: Colors.textPrimary,
+    fontWeight: '700',
   },
 });
-

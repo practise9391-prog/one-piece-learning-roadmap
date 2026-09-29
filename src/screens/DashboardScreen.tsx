@@ -1,3 +1,4 @@
+import { StaggeredFadeIn } from '../components/common/StaggeredFadeIn';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -19,6 +20,9 @@ import { Course } from '../models/Course';
 import { UserProfile, AVATAR_OPTIONS } from '../models/Settings';
 import { settingsRepository } from '../repositories/SettingsRepository';
 import { studySessionRepository } from '../repositories/StudySessionRepository';
+import { careerGoalService } from '../services/CareerGoalService';
+import { CareerGoalSummary } from '../models/CareerGoal';
+import { activityRepository, StreakMetrics } from '../repositories/ActivityRepository';
 import { ActiveFocusBanner } from '../components/focus/ActiveFocusBanner';
 import { Colors } from '../theme/colors';
 
@@ -31,6 +35,8 @@ export const DashboardScreen: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [todayStudySeconds, setTodayStudySeconds] = useState<number>(0);
   const [showFocusCard, setShowFocusCard] = useState<boolean>(true);
+  const [goalSummary, setGoalSummary] = useState<CareerGoalSummary | null>(null);
+  const [streakMetrics, setStreakMetrics] = useState<StreakMetrics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -43,6 +49,8 @@ export const DashboardScreen: React.FC = () => {
         fetchedProfile,
         fetchedTodayStudy,
         fetchedFocusSettings,
+        fetchedGoalSummary,
+        fetchedStreakMetrics,
       ] = await Promise.all([
         dashboardService.getOverallStats(),
         dashboardService.getCurrentLearningItem(),
@@ -50,6 +58,8 @@ export const DashboardScreen: React.FC = () => {
         settingsRepository.getUserProfile(),
         studySessionRepository.getTodayStudyTime(),
         studySessionRepository.getFocusSettings(),
+        careerGoalService.getCareerGoalSummary().catch(() => null),
+        activityRepository.getStreakMetrics().catch(() => null),
       ]);
       setStats(fetchedStats);
       setCurrentLearning(fetchedCurrent);
@@ -57,6 +67,8 @@ export const DashboardScreen: React.FC = () => {
       setUserProfile(fetchedProfile);
       setTodayStudySeconds(fetchedTodayStudy);
       setShowFocusCard(fetchedFocusSettings.show_dashboard_card);
+      setGoalSummary(fetchedGoalSummary);
+      setStreakMetrics(fetchedStreakMetrics);
     } catch (err) {
       console.error('Failed to load dashboard data from SQLite:', err);
     } finally {
@@ -76,10 +88,18 @@ export const DashboardScreen: React.FC = () => {
 
   const handleContinue = () => {
     if (currentLearning) {
-      navigate('ModuleDetails', {
-        courseId: currentLearning.course.id,
-        moduleId: currentLearning.currentModule.id,
-      });
+      if (currentLearning.currentModule.last_opened_topic_id) {
+        navigate('InteractiveTopic', {
+          courseId: currentLearning.course.id,
+          moduleId: currentLearning.currentModule.id,
+          topicId: currentLearning.currentModule.last_opened_topic_id,
+        });
+      } else {
+        navigate('ModuleDetails', {
+          courseId: currentLearning.course.id,
+          moduleId: currentLearning.currentModule.id,
+        });
+      }
     } else {
       navigate('Courses');
     }
@@ -120,6 +140,7 @@ export const DashboardScreen: React.FC = () => {
           <ActiveFocusBanner />
 
           {/* 1. HERO SECTION */}
+          <StaggeredFadeIn index={0}>
           <View style={styles.heroCard}>
             <View style={styles.heroTopRow}>
               <TouchableOpacity
@@ -133,10 +154,35 @@ export const DashboardScreen: React.FC = () => {
               </TouchableOpacity>
               <View style={styles.heroTitleCol}>
                 <Text style={styles.heroPreTitle}>
-                  CAPTAIN {userProfile?.display_name ? userProfile.display_name.toUpperCase() : 'PAVAN'}'S VOYAGE
+                  WELCOME BACK 👋 CAPTAIN {userProfile?.display_name ? userProfile.display_name.toUpperCase() : 'PAVAN'}
                 </Text>
                 <Text style={styles.heroTitle}>LEARNING JOURNEY</Text>
               </View>
+            </View>
+
+            {/* STREAK & GOAL BADGES ROW */}
+            <View style={styles.heroBadgeRow}>
+              <TouchableOpacity
+                style={styles.heroStreakPill}
+                onPress={() => navigate('Statistics')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="flame" size={14} color="#F59E0B" />
+                <Text style={styles.heroStreakText}>
+                  {streakMetrics?.currentStreak || 0} Day Streak
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.heroGoalPill}
+                onPress={() => navigate('MyGoal')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trophy" size={14} color="#10B981" />
+                <Text style={styles.heroGoalText}>
+                  ₹30 LPA Goal ({goalSummary?.overallReadinessPercentage || 0}%)
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <Text style={styles.heroQuote}>
@@ -172,8 +218,44 @@ export const DashboardScreen: React.FC = () => {
               <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={styles.btnIcon} />
             </TouchableOpacity>
           </View>
+          </StaggeredFadeIn>
+
+          {/* 1.5 CAREER GOAL BANNER */}
+          <StaggeredFadeIn index={1}>
+            <TouchableOpacity
+              style={styles.goalBannerCard}
+              onPress={() => navigate('MyGoal')}
+              activeOpacity={0.88}
+            >
+              <View style={styles.goalBannerTop}>
+                <View style={styles.goalIconCircle}>
+                  <Ionicons name="trophy" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.goalTitleCol}>
+                  <View style={styles.goalBadgeRow}>
+                    <Text style={styles.goalBadgeText}>CAREER MISSION</Text>
+                    <View style={styles.compPill}>
+                      <Text style={styles.compPillText}>₹30 LPA+</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.goalTitleText}>Senior Software Engineer</Text>
+                  <Text style={styles.goalStageSub}>
+                    Stage {goalSummary?.currentStageNumber || 1} of 9 • {goalSummary?.overallReadinessPercentage || 0}% Ready
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#64748B" />
+              </View>
+
+              <ProgressBar
+                percentage={goalSummary?.overallReadinessPercentage || 0}
+                height={6}
+                color="#10B981"
+              />
+            </TouchableOpacity>
+          </StaggeredFadeIn>
 
           {/* 2. CONTINUE LEARNING CARD */}
+          <StaggeredFadeIn index={1}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeaderTitle}>CONTINUE LEARNING</Text>
           </View>
@@ -236,6 +318,7 @@ export const DashboardScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           )}
+          </StaggeredFadeIn>
 
           {/* 3. QUICK ACTIONS */}
           <View style={styles.sectionHeaderRow}>
@@ -243,6 +326,42 @@ export const DashboardScreen: React.FC = () => {
           </View>
 
           <View style={styles.quickGrid}>
+            <TouchableOpacity
+              style={styles.quickCard}
+              onPress={() => navigate('MyGoal')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="trophy-outline" size={22} color="#D97706" />
+              </View>
+              <Text style={styles.quickLabel}>My Goal</Text>
+              <Text style={styles.quickSub}>₹30 LPA</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              onPress={() => navigate('CourseRoadmap', { courseId: 'algorithms' })}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickIconCircle, { backgroundColor: '#F5F3FF' }]}>
+                <Ionicons name="git-network-outline" size={22} color="#7C3AED" />
+              </View>
+              <Text style={styles.quickLabel}>Algo Lab</Text>
+              <Text style={styles.quickSub}>50 Modules</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              onPress={() => navigate('CodeWorkspace')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickIconCircle, { backgroundColor: '#ECFDF5' }]}>
+                <Ionicons name="terminal-outline" size={22} color="#059669" />
+              </View>
+              <Text style={styles.quickLabel}>Debugger</Text>
+              <Text style={styles.quickSub}>Visual Trace</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.quickCard}
               onPress={() => navigate('Courses')}
@@ -253,42 +372,6 @@ export const DashboardScreen: React.FC = () => {
               </View>
               <Text style={styles.quickLabel}>Courses</Text>
               <Text style={styles.quickSub}>{courses.length} Islands</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickCard}
-              onPress={() => navigate('Notes')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.quickIconCircle, { backgroundColor: '#F0FDF4' }]}>
-                <Ionicons name="journal-outline" size={22} color="#16A34A" />
-              </View>
-              <Text style={styles.quickLabel}>Notes</Text>
-              <Text style={styles.quickSub}>{stats?.totalNotes || 0} Saved</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickCard}
-              onPress={() => navigate('Statistics')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.quickIconCircle, { backgroundColor: '#FAF5FF' }]}>
-                <Ionicons name="pie-chart-outline" size={22} color="#9333EA" />
-              </View>
-              <Text style={styles.quickLabel}>Stats</Text>
-              <Text style={styles.quickSub}>Voyage Data</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickCard}
-              onPress={() => navigate('FocusMode')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.quickIconCircle, { backgroundColor: '#F0F9FF' }]}>
-                <Ionicons name="timer-outline" size={22} color="#0284C7" />
-              </View>
-              <Text style={styles.quickLabel}>Focus</Text>
-              <Text style={styles.quickSub}>Study Timer</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -317,26 +400,26 @@ export const DashboardScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.quickCard}
-              onPress={() => navigate('StudyPlan')}
+              onPress={() => navigate('Notes')}
               activeOpacity={0.8}
             >
-              <View style={[styles.quickIconCircle, { backgroundColor: '#EEF2FF' }]}>
-                <Ionicons name="flag-outline" size={22} color="#4F46E5" />
+              <View style={[styles.quickIconCircle, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="journal-outline" size={22} color="#16A34A" />
               </View>
-              <Text style={styles.quickLabel}>Study Plan</Text>
-              <Text style={styles.quickSub}>Target & Goals</Text>
+              <Text style={styles.quickLabel}>Notes</Text>
+              <Text style={styles.quickSub}>{stats?.totalNotes || 0} Saved</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.quickCard}
-              onPress={() => navigate('DailyLearning')}
+              onPress={() => navigate('Statistics')}
               activeOpacity={0.8}
             >
-              <View style={[styles.quickIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="calendar-outline" size={22} color="#D97706" />
+              <View style={[styles.quickIconCircle, { backgroundColor: '#FAF5FF' }]}>
+                <Ionicons name="pie-chart-outline" size={22} color="#9333EA" />
               </View>
-              <Text style={styles.quickLabel}>Daily Plan</Text>
-              <Text style={styles.quickSub}>Today's Goals</Text>
+              <Text style={styles.quickLabel}>Stats</Text>
+              <Text style={styles.quickSub}>Voyage Data</Text>
             </TouchableOpacity>
           </View>
 
@@ -492,15 +575,15 @@ export const DashboardScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          {courses.map((course) => {
+          {courses.map((course, idx) => {
             const statusInfo = getCourseStatusBadge(course);
             return (
-              <TouchableOpacity
-                key={course.id}
-                style={styles.courseItemCard}
-                activeOpacity={0.8}
-                onPress={() => navigate('CourseRoadmap', { courseId: course.id })}
-              >
+              <StaggeredFadeIn key={course.id} index={idx + 2}>
+                <TouchableOpacity
+                  style={styles.courseItemCard}
+                  activeOpacity={0.8}
+                  onPress={() => navigate('CourseRoadmap', { courseId: course.id })}
+                >
                 <View style={styles.courseCardTop}>
                   <View style={styles.courseIconCircle}>
                     <Ionicons name="boat-outline" size={20} color={Colors.primary} />
@@ -528,7 +611,8 @@ export const DashboardScreen: React.FC = () => {
                     {Math.round(course.progress_percentage)}%
                   </Text>
                 </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </StaggeredFadeIn>
             );
           })}
         </ScrollView>
@@ -602,6 +686,108 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heroStreakPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  heroStreakText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
+  heroGoalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  heroGoalText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#10B981',
+  },
+  goalBannerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  goalBannerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  goalIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  goalTitleCol: {
+    flex: 1,
+  },
+  goalBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  goalBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#D97706',
+    letterSpacing: 0.5,
+  },
+  compPill: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  compPillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  goalTitleText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  goalStageSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
   heroQuote: {
     fontSize: 13,

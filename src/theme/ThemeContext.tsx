@@ -4,6 +4,7 @@ import { ThemeId, AppThemeDefinition, APP_THEMES, OceanTheme, DarkTheme, LightTh
 import { DatabaseManager } from '../database/DatabaseManager';
 
 interface ThemeContextType {
+  colors: AppThemeDefinition["colors"];
   themeId: ThemeId;
   theme: AppThemeDefinition;
   setThemeId: (id: ThemeId) => Promise<void>;
@@ -13,6 +14,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
+  colors: OceanTheme.colors,
   themeId: 'ocean',
   theme: OceanTheme,
   setThemeId: async () => {},
@@ -105,6 +107,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         themeId,
         theme: resolvedTheme,
+        colors: resolvedTheme.colors,
         setThemeId,
         reducedMotion,
         setReducedMotion,

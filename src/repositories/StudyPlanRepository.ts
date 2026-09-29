@@ -247,6 +247,15 @@ export class StudyPlanRepository {
        WHERE id = ?;`,
       [plannedMin, completedMin, plannedTopics, completedTopics, newStatus, getCurrentTimestamp(), planId]
     );
+
+    if (newStatus === 'COMPLETED' && plan.status !== 'COMPLETED') {
+      try {
+        const { notificationService } = await import('../services/NotificationService');
+        await notificationService.scheduleCompletedGoalNotification();
+      } catch (err) {
+        console.warn('Failed to send goal completion notification:', err);
+      }
+    }
   }
 
   async setRestDay(dateStr: string, isRestDay: boolean): Promise<StudyPlan> {

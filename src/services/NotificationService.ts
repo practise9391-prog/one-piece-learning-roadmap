@@ -5,12 +5,13 @@ import {
   NotificationType,
   NotificationChannelId,
   NotificationPayload,
+  NotificationHistory,
+  ScheduledNotificationItem,
+  NotificationDecisionResult,
 } from '../models/Notification';
 import { notificationRepository } from '../repositories/NotificationRepository';
-import { dashboardService } from './DashboardService';
-import { motivationRepository } from '../repositories/MotivationRepository';
-import { activityRepository } from '../repositories/ActivityRepository';
-import { courseRepository } from '../repositories/CourseRepository';
+import { NotificationDecisionEngine } from './NotificationDecisionEngine';
+import { RootScreen } from '../navigation/types';
 
 // Configure top-level Expo notification presentation behavior
 Notifications.setNotificationHandler({
@@ -23,9 +24,13 @@ Notifications.setNotificationHandler({
   }),
 });
 
+export type DeepLinkHandler = (screen: RootScreen, params?: Record<string, any>) => void;
+
 export class NotificationService {
   private static instance: NotificationService | null = null;
   private initialized: boolean = false;
+  private deepLinkHandler: DeepLinkHandler | null = null;
+  private responseSubscription: any = null;
 
   private constructor() {}
 
@@ -37,13 +42,19 @@ export class NotificationService {
   }
 
   /**
-   * Initializes notification channels and presentation handler.
+   * Initializes notification channels, response listeners, and restores schedules.
    */
-  async init(): Promise<void> {
+  async init(deepLinkHandler?: DeepLinkHandler): Promise<void> {
+    if (deepLinkHandler) {
+      this.deepLinkHandler = deepLinkHandler;
+    }
+
     if (this.initialized) return;
 
     try {
       await this.createNotificationChannels();
+      this.setupNotificationResponseListener();
+      await this.restoreSchedules();
       this.initialized = true;
     } catch (err) {
       console.warn('[NotificationService] Channel init warning:', err);
@@ -51,92 +62,184 @@ export class NotificationService {
   }
 
   /**
-   * Creates Android notification channels with appropriate priorities and vibrations.
+   * Sets or updates the deep link handler callback.
+   */
+  setDeepLinkHandler(handler: DeepLinkHandler): void {
+    this.deepLinkHandler = handler;
+  }
+
+  /**
+   * Sets up deep link handling when a notification is tapped by the user.
+   */
+  public setupNotificationResponseListener(handler?: DeepLinkHandler): () => void {
+    if (handler) {
+      this.deepLinkHandler = handler;
+    }
+
+    if (this.responseSubscription) {
+      this.responseSubscription.remove();
+    }
+
+    this.responseSubscription = Notifications.addNotificationResponseReceivedListener(
+      async (response) => {
+        try {
+          const data = (response.notification.request.content.data as unknown) as NotificationPayload;
+          const actionId = response.actionIdentifier;
+
+          // Record opened in history
+          if (data && data.type) {
+            const recent = await notificationRepository.getRecentHistoryByType(data.type, 24);
+            if (recent.length > 0) {
+              await notificationRepository.updateHistoryStatus(
+                recent[0].id,
+                actionId === Notifications.DEFAULT_ACTION_IDENTIFIER ? 'OPENED' : 'DISMISSED',
+                'opened_at'
+              );
+            }
+          }
+
+          if (!data || !this.deepLinkHandler) return;
+
+          // Action Handling (Section 9 & 43)
+          if (actionId === 'START_STUDY' || actionId === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+            if (data.topic_id && data.course_id) {
+              this.deepLinkHandler('ModuleDetails', {
+                courseId: data.course_id,
+                moduleId: data.module_id,
+                topicId: data.topic_id,
+              });
+            } else if (data.course_id) {
+              this.deepLinkHandler('CourseRoadmap', {
+                courseId: data.course_id,
+              });
+            } else {
+              this.deepLinkHandler((data.target_screen as RootScreen) || 'StudyPlan', {});
+            }
+          } else if (actionId === 'VIEW_PLAN') {
+            this.deepLinkHandler('StudyPlan', {});
+          } else if (actionId === 'LATER' || actionId === 'SNOOZE') {
+            await this.snooze();
+          }
+        } catch (err) {
+          console.warn('[NotificationService] Notification tap error:', err);
+        }
+      }
+    );
+
+    return () => {
+      if (this.responseSubscription) {
+        this.responseSubscription.remove();
+        this.responseSubscription = null;
+      }
+    };
+  }
+
+  /**
+   * Creates Android notification channels with appropriate priorities and vibrations (Section 42).
    */
   async createNotificationChannels(): Promise<void> {
     if (Platform.OS !== 'android') return;
 
-    // 1. Learning Reminders Channel
-    await Notifications.setNotificationChannelAsync('learning_reminders', {
-      name: 'Daily Learning Reminders',
-      description: 'Reminders to continue your course roadmap and modules',
+    // 1. Study Reminders Channel (High Importance)
+    await Notifications.setNotificationChannelAsync('study_reminders', {
+      name: 'Daily Study Reminders',
+      description: 'Reminders for your planned learning missions and topics',
       importance: Notifications.AndroidImportance.HIGH,
       sound: 'default',
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#E53935',
-      enableLights: true,
-      enableVibrate: true,
+      lightColor: '#4F46E5',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: false,
     });
 
-    // 2. Daily Goal Reminders Channel
+    // 2. Study Alarm Channel (Max Importance, loud, bypass DND where permitted)
+    await Notifications.setNotificationChannelAsync('study_alarm', {
+      name: 'Study Alarm',
+      description: 'Urgent alarm alert for scheduled study sessions',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 500, 200, 500, 200, 500],
+      lightColor: '#DC2626',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: true,
+    });
+
+    // 3. Goal Reminders Channel
     await Notifications.setNotificationChannelAsync('goal_reminders', {
-      name: 'Daily Goal Reminders',
-      description: 'Alerts when your daily learning goals are still waiting',
+      name: 'Goal & Progress Reminders',
+      description: 'Alerts for daily and milestone learning achievements',
       importance: Notifications.AndroidImportance.HIGH,
       sound: 'default',
-      vibrationPattern: [0, 200, 150, 200],
-      lightColor: '#FFB300',
-      enableLights: true,
-      enableVibrate: true,
+      vibrationPattern: [0, 200, 200, 200],
+      lightColor: '#10B981',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
-    // 3. Practice Reminders Channel
-    await Notifications.setNotificationChannelAsync('practice_reminders', {
-      name: 'Practice Hub Reminders',
-      description: 'Reminders to solve technical coding and aptitude challenges',
+    // 4. Weekly & Monthly Summary Channel
+    await Notifications.setNotificationChannelAsync('weekly_monthly_summary', {
+      name: 'Weekly & Monthly Summaries',
+      description: 'Periodic progress recaps of your learning voyage',
       importance: Notifications.AndroidImportance.DEFAULT,
       sound: 'default',
       vibrationPattern: [0, 150, 150, 150],
-      lightColor: '#00B4D8',
-      enableLights: true,
-      enableVibrate: true,
+      lightColor: '#F59E0B',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
-    // 4. Daily Motivation Channel
-    await Notifications.setNotificationChannelAsync('motivation', {
-      name: 'Daily Motivation Wisdom',
-      description: 'Morning inspirational quotes to fuel your Grand Line adventure',
+    // 5. Daily Motivation Channel
+    await Notifications.setNotificationChannelAsync('daily_motivation', {
+      name: 'Daily Motivation',
+      description: 'Morning inspiration and daily plan briefings',
       importance: Notifications.AndroidImportance.DEFAULT,
       sound: 'default',
-      vibrationPattern: [0, 100, 100, 100],
-      lightColor: '#F59E0B',
-      enableLights: true,
-      enableVibrate: true,
+      vibrationPattern: [0, 200, 100, 200],
+      lightColor: '#6366F1',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   }
 
-  /**
-   * Checks current permission status without prompting.
-   */
-  async getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  // =========================================================================
+  // PERMISSION HANDLING (Section 2 & 32)
+  // =========================================================================
+
+  async checkPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
     try {
       const { status } = await Notifications.getPermissionsAsync();
-      return status;
+      if (status === 'granted') return 'granted';
+      if (status === 'denied') return 'denied';
+      return 'undetermined';
     } catch {
       return 'undetermined';
     }
   }
 
-  /**
-   * Prompts the user for notification permissions on Android 13+ / iOS.
-   */
   async requestPermission(): Promise<boolean> {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      if (existingStatus === 'granted') {
-        return true;
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+        });
+        finalStatus = status;
       }
-      const { status } = await Notifications.requestPermissionsAsync();
-      return status === 'granted';
+
+      const granted = finalStatus === 'granted';
+      if (granted) {
+        await this.rescheduleAllFromPreferences();
+      }
+      return granted;
     } catch (err) {
-      console.warn('[NotificationService] Request permission error:', err);
+      console.warn('[NotificationService] Permission request error:', err);
       return false;
     }
   }
 
-  /**
-   * Opens Android device application settings so user can manually enable notifications.
-   */
   async openSystemSettings(): Promise<void> {
     try {
       await Linking.openSettings();
@@ -145,598 +248,887 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Helper: Parses "HH:mm" time string into hour and minute components.
-   */
-  parseTime(timeStr: string): { hour: number; minute: number } {
-    try {
-      const parts = timeStr.split(':');
-      const hour = parseInt(parts[0], 10);
-      const minute = parseInt(parts[1], 10);
-      if (!isNaN(hour) && !isNaN(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-        return { hour, minute };
-      }
-    } catch {}
-    return { hour: 19, minute: 0 };
-  }
+  // =========================================================================
+  // SCHEDULING LOGIC WITH DETERMINISTIC IDENTIFIERS (Section 25 & 26)
+  // =========================================================================
 
   /**
-   * Cancels a previously scheduled notification type safely.
+   * Schedules a daily study reminder evaluated by the Decision Engine.
    */
-  async cancelNotification(type: NotificationType): Promise<void> {
+  async scheduleDailyStudyReminder(
+    deterministicId: string,
+    timeStr: string,
+    advanceMinutes: number = 0
+  ): Promise<string | null> {
     try {
-      const record = await notificationRepository.getScheduledNotification(type);
-      if (record && record.expo_notification_id) {
-        await Notifications.cancelScheduledNotificationAsync(record.expo_notification_id);
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled) return null;
+
+      // 1. Gather real study context
+      const studyPlan = await notificationRepository.getTodayStudyPlan();
+      const completedMinutesToday = await notificationRepository.getTodayStudySessionsTotal();
+      const streakDays = await notificationRepository.getStreakDays();
+
+      // 2. Evaluate decision result
+      const decision = NotificationDecisionEngine.evaluateStudyReminder({
+        studyPlan,
+        completedMinutesToday,
+        activeStreakDays: streakDays,
+        preferences: prefs,
+        isAlarm: false,
+      });
+
+      // 3. Compute target time
+      const [hour, minute] = timeStr.split(':').map((s) => parseInt(s, 10));
+      let targetHour = hour;
+      let targetMinute = minute - advanceMinutes;
+      if (targetMinute < 0) {
+        targetMinute += 60;
+        targetHour = (targetHour - 1 + 24) % 24;
       }
-      await notificationRepository.removeScheduledNotification(type);
+
+      // 4. Cancel any previous schedule with this deterministic ID
+      await this.cancelScheduledItem(deterministicId);
+
+      // 5. Schedule via Expo Notifications
+      const notifId = await Notifications.scheduleNotificationAsync({
+        identifier: deterministicId,
+        content: {
+          title: decision.title,
+          body: decision.message,
+          data: {
+            type: decision.type,
+            course_id: decision.courseId || '',
+            module_id: decision.moduleId || '',
+            topic_id: decision.topicId || '',
+            target_screen: decision.targetScreen,
+            title: decision.title,
+            body: decision.message,
+          },
+          sound: decision.soundEnabled,
+          vibrate: decision.vibrationEnabled ? [0, 250, 250, 250] : undefined,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: targetHour,
+          minute: targetMinute,
+          channelId: decision.channelId,
+        },
+      });
+
+      // 6. Persist scheduled item for reboot/restart restoration
+      const scheduledItem: ScheduledNotificationItem = {
+        id: deterministicId,
+        notification_type: decision.type,
+        course_id: decision.courseId,
+        module_id: decision.moduleId,
+        topic_id: decision.topicId,
+        scheduled_time: `${String(targetHour).padStart(2, '0')}:${String(targetMinute).padStart(2, '0')}`,
+        repeat_type: 'DAILY',
+        enabled: true,
+        notification_id: notifId,
+        payload_json: JSON.stringify(decision),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await notificationRepository.saveScheduledNotification(scheduledItem);
+
+      // 7. Record scheduled in history
+      await notificationRepository.recordHistory({
+        notification_type: decision.type,
+        title: decision.title,
+        message: decision.message,
+        course_id: decision.courseId,
+        module_id: decision.moduleId,
+        topic_id: decision.topicId,
+        scheduled_at: scheduledItem.scheduled_time,
+        status: 'SCHEDULED',
+      });
+
+      return notifId;
     } catch (err) {
-      console.warn(`[NotificationService] Error cancelling ${type}:`, err);
+      console.warn('[NotificationService] scheduleDailyStudyReminder error:', err);
+      return null;
     }
   }
 
   /**
-   * Cancels all scheduled application notifications.
+   * Schedules a study alarm (Section 11).
    */
-  async cancelAllNotifications(): Promise<void> {
+  async scheduleStudyAlarm(timeStr: string): Promise<string | null> {
     try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled || !prefs.alarm_enabled) return null;
+
+      const deterministicId = 'study_alarm';
+      await this.cancelScheduledItem(deterministicId);
+
+      const studyPlan = await notificationRepository.getTodayStudyPlan();
+      const completedMinutesToday = await notificationRepository.getTodayStudySessionsTotal();
+      const streakDays = await notificationRepository.getStreakDays();
+
+      const decision = NotificationDecisionEngine.evaluateStudyReminder({
+        studyPlan,
+        completedMinutesToday,
+        activeStreakDays: streakDays,
+        preferences: prefs,
+        isAlarm: true,
+      });
+
+      const [hour, minute] = timeStr.split(':').map((s) => parseInt(s, 10));
+
+      const notifId = await Notifications.scheduleNotificationAsync({
+        identifier: deterministicId,
+        content: {
+          title: decision.title,
+          body: decision.message,
+          data: {
+            type: decision.type,
+            course_id: decision.courseId || '',
+            module_id: decision.moduleId || '',
+            topic_id: decision.topicId || '',
+            target_screen: decision.targetScreen,
+            title: decision.title,
+            body: decision.message,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 500, 200, 500, 200, 500] : undefined,
+          priority: Notifications.AndroidNotificationPriority.MAX,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId: 'study_alarm',
+        },
+      });
+
+      const scheduledItem: ScheduledNotificationItem = {
+        id: deterministicId,
+        notification_type: decision.type,
+        course_id: decision.courseId,
+        module_id: decision.moduleId,
+        topic_id: decision.topicId,
+        scheduled_time: timeStr,
+        repeat_type: 'DAILY',
+        enabled: true,
+        notification_id: notifId,
+        payload_json: JSON.stringify(decision),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await notificationRepository.saveScheduledNotification(scheduledItem);
+
+      await notificationRepository.recordHistory({
+        notification_type: decision.type,
+        title: decision.title,
+        message: decision.message,
+        course_id: decision.courseId,
+        module_id: decision.moduleId,
+        topic_id: decision.topicId,
+        scheduled_at: timeStr,
+        status: 'SCHEDULED',
+      });
+
+      return notifId;
+    } catch (err) {
+      console.warn('[NotificationService] scheduleStudyAlarm error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Schedules a morning plan briefing reminder (Section 16).
+   */
+  async scheduleMorningPlanReminder(deterministicId: string, timeStr: string): Promise<string | null> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled || !prefs.morning_plan_reminder_enabled) return null;
+
+      await this.cancelScheduledItem(deterministicId);
+
+      const studyPlan = await notificationRepository.getTodayStudyPlan();
+      const decision = NotificationDecisionEngine.evaluateMorningPlan({
+        studyPlan,
+        completedMinutesToday: 0,
+        activeStreakDays: 0,
+        preferences: prefs,
+      });
+
+      if (!decision) return null;
+
+      const [hour, minute] = timeStr.split(':').map((s) => parseInt(s, 10));
+
+      const notifId = await Notifications.scheduleNotificationAsync({
+        identifier: deterministicId,
+        content: {
+          title: decision.title,
+          body: decision.message,
+          data: {
+            type: decision.type,
+            target_screen: decision.targetScreen,
+            title: decision.title,
+            body: decision.message,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 200, 100, 200] : undefined,
+          priority: Notifications.AndroidNotificationPriority.DEFAULT,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId: 'study_reminders',
+        },
+      });
+
+      const scheduledItem: ScheduledNotificationItem = {
+        id: deterministicId,
+        notification_type: decision.type,
+        scheduled_time: timeStr,
+        repeat_type: 'DAILY',
+        enabled: true,
+        notification_id: notifId,
+        payload_json: JSON.stringify(decision),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await notificationRepository.saveScheduledNotification(scheduledItem);
+
+      return notifId;
+    } catch (err) {
+      console.warn('[NotificationService] scheduleMorningPlanReminder error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Schedules an evening reminder for unfinished topics (Section 17).
+   */
+  async scheduleEveningUnfinishedReminder(deterministicId: string, timeStr: string): Promise<string | null> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled || !prefs.evening_unfinished_reminder_enabled) return null;
+
+      await this.cancelScheduledItem(deterministicId);
+
+      const studyPlan = await notificationRepository.getTodayStudyPlan();
+      const completedMinutesToday = await notificationRepository.getTodayStudySessionsTotal();
+
+      const decision = NotificationDecisionEngine.evaluateEveningUnfinished({
+        studyPlan,
+        completedMinutesToday,
+        activeStreakDays: 0,
+        preferences: prefs,
+      });
+
+      if (!decision) return null;
+
+      const [hour, minute] = timeStr.split(':').map((s) => parseInt(s, 10));
+
+      const notifId = await Notifications.scheduleNotificationAsync({
+        identifier: deterministicId,
+        content: {
+          title: decision.title,
+          body: decision.message,
+          data: {
+            type: decision.type,
+            target_screen: decision.targetScreen,
+            title: decision.title,
+            body: decision.message,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 250, 250, 250] : undefined,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId: 'study_reminders',
+        },
+      });
+
+      const scheduledItem: ScheduledNotificationItem = {
+        id: deterministicId,
+        notification_type: decision.type,
+        scheduled_time: timeStr,
+        repeat_type: 'DAILY',
+        enabled: true,
+        notification_id: notifId,
+        payload_json: JSON.stringify(decision),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await notificationRepository.saveScheduledNotification(scheduledItem);
+
+      return notifId;
+    } catch (err) {
+      console.warn('[NotificationService] scheduleEveningUnfinishedReminder error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Schedules a weekly summary reminder (Section 19).
+   */
+  async scheduleWeeklySummaryReminder(day: string, timeStr: string): Promise<string | null> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled || !prefs.weekly_reminder_enabled) return null;
+
+      const deterministicId = 'weekly_summary';
+      await this.cancelScheduledItem(deterministicId);
+
+      const weeklyData = await notificationRepository.getWeeklyProgressData();
+      const decision = NotificationDecisionEngine.evaluateWeeklySummary({
+        studyPlan: null,
+        completedMinutesToday: 0,
+        activeStreakDays: 0,
+        weeklyData,
+        preferences: prefs,
+      });
+
+      const [hour, minute] = timeStr.split(':').map((s) => parseInt(s, 10));
+      const dayMap: Record<string, number> = {
+        Sunday: 1,
+        Monday: 2,
+        Tuesday: 3,
+        Wednesday: 4,
+        Thursday: 5,
+        Friday: 6,
+        Saturday: 7,
+      };
+      const weekday = dayMap[day] || 1;
+
+      const notifId = await Notifications.scheduleNotificationAsync({
+        identifier: deterministicId,
+        content: {
+          title: decision.title,
+          body: decision.message,
+          data: {
+            type: decision.type,
+            target_screen: decision.targetScreen,
+            title: decision.title,
+            body: decision.message,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 150, 150, 150] : undefined,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          weekday,
+          hour,
+          minute,
+          channelId: 'weekly_monthly_summary',
+        },
+      });
+
+      const scheduledItem: ScheduledNotificationItem = {
+        id: deterministicId,
+        notification_type: decision.type,
+        scheduled_time: `${day} ${timeStr}`,
+        repeat_type: 'WEEKLY',
+        enabled: true,
+        notification_id: notifId,
+        payload_json: JSON.stringify(decision),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await notificationRepository.saveScheduledNotification(scheduledItem);
+
+      return notifId;
+    } catch (err) {
+      console.warn('[NotificationService] scheduleWeeklySummaryReminder error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Schedules a monthly progress summary reminder (Section 20).
+   */
+  async scheduleMonthlySummaryReminder(timeStr: string): Promise<string | null> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled || !prefs.monthly_reminder_enabled) return null;
+
+      const deterministicId = 'monthly_summary';
+      await this.cancelScheduledItem(deterministicId);
+
+      const monthlyData = await notificationRepository.getMonthlyProgressData();
+      const decision = NotificationDecisionEngine.evaluateMonthlySummary({
+        studyPlan: null,
+        completedMinutesToday: 0,
+        activeStreakDays: 0,
+        monthlyData,
+        preferences: prefs,
+      });
+
+      const [hour, minute] = timeStr.split(':').map((s) => parseInt(s, 10));
+
+      const notifId = await Notifications.scheduleNotificationAsync({
+        identifier: deterministicId,
+        content: {
+          title: decision.title,
+          body: decision.message,
+          data: {
+            type: decision.type,
+            target_screen: decision.targetScreen,
+            title: decision.title,
+            body: decision.message,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 150, 150, 150] : undefined,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
+          day: 28, // Near month end
+          hour,
+          minute,
+          channelId: 'weekly_monthly_summary',
+        },
+      });
+
+      const scheduledItem: ScheduledNotificationItem = {
+        id: deterministicId,
+        notification_type: decision.type,
+        scheduled_time: `Day 28 ${timeStr}`,
+        repeat_type: 'MONTHLY',
+        enabled: true,
+        notification_id: notifId,
+        payload_json: JSON.stringify(decision),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await notificationRepository.saveScheduledNotification(scheduledItem);
+
+      return notifId;
+    } catch (err) {
+      console.warn('[NotificationService] scheduleMonthlySummaryReminder error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Schedules a streak reminder (Section 21).
+   */
+  async scheduleStreakReminder(deterministicId: string, timeStr: string): Promise<string | null> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled || !prefs.streak_reminder_enabled) return null;
+
+      await this.cancelScheduledItem(deterministicId);
+
+      const streakDays = await notificationRepository.getStreakDays();
+      const completedMinutesToday = await notificationRepository.getTodayStudySessionsTotal();
+
+      const decision = NotificationDecisionEngine.evaluateStreakProtection({
+        studyPlan: null,
+        completedMinutesToday,
+        activeStreakDays: streakDays,
+        preferences: prefs,
+      });
+
+      if (!decision) return null;
+
+      const [hour, minute] = timeStr.split(':').map((s) => parseInt(s, 10));
+
+      const notifId = await Notifications.scheduleNotificationAsync({
+        identifier: deterministicId,
+        content: {
+          title: decision.title,
+          body: decision.message,
+          data: {
+            type: decision.type,
+            target_screen: decision.targetScreen,
+            title: decision.title,
+            body: decision.message,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 250, 250, 250] : undefined,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId: 'study_reminders',
+        },
+      });
+
+      const scheduledItem: ScheduledNotificationItem = {
+        id: deterministicId,
+        notification_type: decision.type,
+        scheduled_time: timeStr,
+        repeat_type: 'DAILY',
+        enabled: true,
+        notification_id: notifId,
+        payload_json: JSON.stringify(decision),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await notificationRepository.saveScheduledNotification(scheduledItem);
+
+      return notifId;
+    } catch (err) {
+      console.warn('[NotificationService] scheduleStreakReminder error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Cancels a scheduled notification by deterministic ID.
+   */
+  async cancelScheduledItem(deterministicId: string): Promise<void> {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(deterministicId);
+      await notificationRepository.removeScheduledNotificationById(deterministicId);
+    } catch (err) {
+      // Ignore if not previously scheduled
+    }
+  }
+
+  /**
+   * Snooze feature (Section 13).
+   * Cancels current active reminder, schedules exactly one new local reminder after snoozeMinutes.
+   */
+  async snooze(snoozeMinutes?: number): Promise<void> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      const minutes = snoozeMinutes || prefs.snooze_interval_minutes || 10;
+      const snoozeId = 'snooze_reminder';
+
+      // 1. Cancel previous snooze if any
+      await Notifications.cancelScheduledNotificationAsync(snoozeId);
+
+      const studyPlan = await notificationRepository.getTodayStudyPlan();
+      const completedMinutesToday = await notificationRepository.getTodayStudySessionsTotal();
+      const decision = NotificationDecisionEngine.evaluateStudyReminder({
+        studyPlan,
+        completedMinutesToday,
+        activeStreakDays: 0,
+        preferences: prefs,
+      });
+
+      const targetTitle = `⏰ Snooze Complete (${minutes}m)`;
+      const targetMessage = `Ready to dive back in? Next: ${decision.title} — ${decision.message}`;
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: snoozeId,
+        content: {
+          title: targetTitle,
+          body: targetMessage,
+          data: {
+            type: 'SNOOZE_REMINDER',
+            target_screen: decision.targetScreen,
+            title: targetTitle,
+            body: targetMessage,
+            course_id: decision.courseId,
+            module_id: decision.moduleId,
+            topic_id: decision.topicId,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 300, 150, 300] : undefined,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: minutes * 60,
+          repeats: false,
+          channelId: 'study_reminders',
+        },
+      });
+
+      await notificationRepository.recordHistory({
+        notification_type: 'SNOOZE_REMINDER',
+        title: targetTitle,
+        message: targetMessage,
+        course_id: decision.courseId,
+        module_id: decision.moduleId,
+        topic_id: decision.topicId,
+        status: 'SNOOZED',
+      });
+    } catch (err) {
+      console.warn('[NotificationService] snooze error:', err);
+    }
+  }
+
+  /**
+   * Reschedules all notifications according to user preferences (Section 26).
+   */
+  async rescheduleAllFromPreferences(): Promise<void> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+
+      // Clear all existing Expo schedules
       await Notifications.cancelAllScheduledNotificationsAsync();
       await notificationRepository.clearAllScheduledNotifications();
-    } catch (err) {
-      console.warn('[NotificationService] Error cancelling all notifications:', err);
-    }
-  }
 
-  /**
-   * A. Schedule Daily Learning Reminder
-   */
-  async scheduleLearningReminder(timeStr: string): Promise<string | null> {
-    await this.cancelNotification('DAILY_LEARNING');
+      if (!prefs.notifications_enabled) {
+        return; // All notifications disabled
+      }
 
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') return null;
-
-    const { hour, minute } = this.parseTime(timeStr);
-
-    // Smart content lookup
-    let title = '⚓ Your learning journey awaits';
-    let body = 'Continue your voyage across the programming islands today.';
-    let courseId: string | undefined;
-    let moduleId: string | undefined;
-    let targetScreen: NotificationPayload['target_screen'] = 'Dashboard';
-
-    try {
-      const currentItem = await dashboardService.getCurrentLearningItem();
-      if (currentItem) {
-        courseId = currentItem.course.id;
-        moduleId = currentItem.currentModule.id;
-        targetScreen = 'ModuleDetails';
-        title = `⚓ Continue your ${currentItem.course.name} journey`;
-        body = `Module ${currentItem.currentModule.order}: ${currentItem.currentModule.title} is ready for you. (${Math.round(currentItem.progressPercentage)}% completed)`;
-      } else {
-        const allCourses = await courseRepository.getAll();
-        if (allCourses.length > 0) {
-          targetScreen = 'Courses';
-          title = '🧭 Chart your next course';
-          body = `14 technical roadmaps are waiting in your offline vault. Select an island to begin.`;
+      // 1. Daily Study Reminders
+      if (prefs.learning_reminder_enabled) {
+        if (prefs.multiple_study_times_enabled) {
+          if (prefs.morning_study_enabled) {
+            await this.scheduleDailyStudyReminder('daily_study_morning', prefs.morning_study_time, prefs.advance_reminder_minutes);
+          }
+          if (prefs.afternoon_study_enabled) {
+            await this.scheduleDailyStudyReminder('daily_study_afternoon', prefs.afternoon_study_time, prefs.advance_reminder_minutes);
+          }
+          if (prefs.evening_study_enabled) {
+            await this.scheduleDailyStudyReminder('daily_study_evening', prefs.evening_study_time, prefs.advance_reminder_minutes);
+          }
+        } else {
+          await this.scheduleDailyStudyReminder('daily_study_primary', prefs.learning_reminder_time, prefs.advance_reminder_minutes);
         }
       }
+
+      // 2. Study Alarm
+      if (prefs.alarm_enabled) {
+        await this.scheduleStudyAlarm(prefs.alarm_time);
+      }
+
+      // 3. Morning Plan Briefing
+      if (prefs.morning_plan_reminder_enabled) {
+        await this.scheduleMorningPlanReminder('morning_plan', prefs.morning_plan_reminder_time);
+      }
+
+      // 4. Evening Unfinished Topics
+      if (prefs.evening_unfinished_reminder_enabled) {
+        await this.scheduleEveningUnfinishedReminder('evening_unfinished', prefs.evening_unfinished_reminder_time);
+      }
+
+      // 5. Weekly Summary
+      if (prefs.weekly_reminder_enabled) {
+        await this.scheduleWeeklySummaryReminder(prefs.weekly_reminder_day, prefs.weekly_reminder_time);
+      }
+
+      // 6. Monthly Summary
+      if (prefs.monthly_reminder_enabled) {
+        await this.scheduleMonthlySummaryReminder(prefs.monthly_reminder_time);
+      }
+
+      // 7. Streak Reminder
+      if (prefs.streak_reminder_enabled) {
+        await this.scheduleStreakReminder('streak_reminder', prefs.streak_reminder_time);
+      }
     } catch (err) {
-      console.warn('[NotificationService] Smart learning content error:', err);
-    }
-
-    const payload: NotificationPayload = {
-      type: 'DAILY_LEARNING',
-      course_id: courseId,
-      module_id: moduleId,
-      target_screen: targetScreen,
-      title,
-      body,
-      scheduled_time: timeStr,
-    };
-
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: payload as any,
-          sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour,
-          minute,
-          channelId: 'learning_reminders',
-        },
-      });
-
-      await notificationRepository.trackScheduledNotification({
-        notification_type: 'DAILY_LEARNING',
-        expo_notification_id: notificationId,
-        scheduled_time: timeStr,
-        title,
-        body,
-        payload_json: JSON.stringify(payload),
-        scheduled_at: new Date().toISOString(),
-      });
-
-      return notificationId;
-    } catch (err) {
-      console.error('[NotificationService] Schedule learning reminder failed:', err);
-      return null;
+      console.warn('[NotificationService] rescheduleAllFromPreferences error:', err);
     }
   }
 
   /**
-   * B. Schedule Daily Goal Reminder
+   * Restores schedules from the persistent database on app start or reboot (Section 27 & 28).
    */
-  async scheduleGoalReminder(timeStr: string): Promise<string | null> {
-    await this.cancelNotification('DAILY_GOAL');
-
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') return null;
-
-    const { hour, minute } = this.parseTime(timeStr);
-
-    let title = '🗺️ Your daily goals are waiting';
-    let body = 'You still have learning goals to conquer today.';
-
+  async restoreSchedules(): Promise<void> {
     try {
-      const todayGoals = await motivationRepository.getTodayGoals();
-      const incomplete = todayGoals.filter((g) => !g.is_completed);
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled) return;
 
-      // If all goals are already complete, skip scheduling to respect the user's focus
-      if (todayGoals.length > 0 && incomplete.length === 0) {
-        return null;
+      const items = await notificationRepository.getScheduledNotifications();
+      if (items.length === 0) {
+        // If empty, rebuild from preferences
+        await this.rescheduleAllFromPreferences();
+        return;
       }
 
-      const count = incomplete.length > 0 ? incomplete.length : 2;
-      title = '🗺️ Your daily goals are waiting';
-      body = `You still have ${count} learning ${count === 1 ? 'goal' : 'goals'} to complete today before midnight.`;
+      // Re-apply schedules
+      await this.rescheduleAllFromPreferences();
     } catch (err) {
-      console.warn('[NotificationService] Smart goal check error:', err);
-    }
-
-    const payload: NotificationPayload = {
-      type: 'DAILY_GOAL',
-      target_screen: 'DailyLearning',
-      title,
-      body,
-      scheduled_time: timeStr,
-    };
-
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: payload as any,
-          sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour,
-          minute,
-          channelId: 'goal_reminders',
-        },
-      });
-
-      await notificationRepository.trackScheduledNotification({
-        notification_type: 'DAILY_GOAL',
-        expo_notification_id: notificationId,
-        scheduled_time: timeStr,
-        title,
-        body,
-        payload_json: JSON.stringify(payload),
-        scheduled_at: new Date().toISOString(),
-      });
-
-      return notificationId;
-    } catch (err) {
-      console.error('[NotificationService] Schedule goal reminder failed:', err);
-      return null;
+      console.warn('[NotificationService] restoreSchedules error:', err);
     }
   }
 
   /**
-   * C. Schedule Streak Reminder
+   * Sends an immediate test notification or alarm (Section 37 & 38).
    */
-  async scheduleStreakReminder(timeStr: string): Promise<string | null> {
-    await this.cancelNotification('STREAK');
-
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') return null;
-
-    const { hour, minute } = this.parseTime(timeStr);
-
-    let title = '🔥 Protect your learning streak';
-    let body = 'Complete one study activity today to keep your streak burning.';
-
+  async sendTestNotification(isAlarm: boolean = false): Promise<void> {
     try {
-      const streakMetrics = await activityRepository.getStreakMetrics();
-      const todayActivities = await activityRepository.getTodayActivities();
+      const prefs = await notificationRepository.getPreferences();
+      const studyPlan = await notificationRepository.getTodayStudyPlan();
+      const completedMinutesToday = await notificationRepository.getTodayStudySessionsTotal();
 
-      // If user has already performed meaningful learning activity today, do not nag them
-      if (todayActivities.length > 0) {
-        return null;
-      }
-
-      if (streakMetrics.currentStreak > 0) {
-        title = '🔥 Protect your learning streak';
-        body = `You have a ${streakMetrics.currentStreak}-day learning streak! Complete one activity today to keep it active.`;
-      } else {
-        title = '🔥 Ignite your learning streak';
-        body = 'Complete a topic or practice question today to start a new streak.';
-      }
-    } catch (err) {
-      console.warn('[NotificationService] Smart streak check error:', err);
-    }
-
-    const payload: NotificationPayload = {
-      type: 'STREAK',
-      target_screen: 'Courses',
-      title,
-      body,
-      scheduled_time: timeStr,
-    };
-
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: payload as any,
-          sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour,
-          minute,
-          channelId: 'learning_reminders',
-        },
+      const decision = NotificationDecisionEngine.evaluateStudyReminder({
+        studyPlan,
+        completedMinutesToday,
+        activeStreakDays: 3,
+        preferences: prefs,
+        isAlarm,
       });
 
-      await notificationRepository.trackScheduledNotification({
-        notification_type: 'STREAK',
-        expo_notification_id: notificationId,
-        scheduled_time: timeStr,
-        title,
-        body,
-        payload_json: JSON.stringify(payload),
-        scheduled_at: new Date().toISOString(),
-      });
+      const title = isAlarm ? `🚨 [TEST] ${decision.title}` : `🔔 [TEST] ${decision.title}`;
 
-      return notificationId;
-    } catch (err) {
-      console.error('[NotificationService] Schedule streak reminder failed:', err);
-      return null;
-    }
-  }
-
-  /**
-   * D. Schedule Practice Reminder
-   */
-  async schedulePracticeReminder(timeStr: string): Promise<string | null> {
-    await this.cancelNotification('PRACTICE');
-
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') return null;
-
-    const { hour, minute } = this.parseTime(timeStr);
-
-    let title = '⚔️ Time for practice';
-    let body = 'Sharpen your coding and problem-solving skills today.';
-
-    try {
-      const todayGoals = await motivationRepository.getTodayGoals();
-      const practiceGoal = todayGoals.find((g) => g.goal_type === 'PRACTICE_QUESTIONS');
-
-      // If practice goal is already completed, skip reminder
-      if (practiceGoal && practiceGoal.is_completed) {
-        return null;
-      }
-
-      if (practiceGoal) {
-        const remaining = Math.max(0, practiceGoal.target - practiceGoal.current);
-        title = '⚔️ Time for practice';
-        body = `${remaining} practice ${remaining === 1 ? 'challenge remains' : 'challenges remain'} for today's goal.`;
-      }
-    } catch (err) {
-      console.warn('[NotificationService] Smart practice check error:', err);
-    }
-
-    const payload: NotificationPayload = {
-      type: 'PRACTICE',
-      target_screen: 'PracticeLinks',
-      title,
-      body,
-      scheduled_time: timeStr,
-    };
-
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: payload as any,
-          sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour,
-          minute,
-          channelId: 'practice_reminders',
-        },
-      });
-
-      await notificationRepository.trackScheduledNotification({
-        notification_type: 'PRACTICE',
-        expo_notification_id: notificationId,
-        scheduled_time: timeStr,
-        title,
-        body,
-        payload_json: JSON.stringify(payload),
-        scheduled_at: new Date().toISOString(),
-      });
-
-      return notificationId;
-    } catch (err) {
-      console.error('[NotificationService] Schedule practice reminder failed:', err);
-      return null;
-    }
-  }
-
-  /**
-   * E. Schedule Daily Motivation Reminder
-   */
-  async scheduleMotivationReminder(timeStr: string): Promise<string | null> {
-    await this.cancelNotification('MOTIVATION');
-
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') return null;
-
-    const { hour, minute } = this.parseTime(timeStr);
-
-    let title = '🌊 Keep moving forward';
-    let body = '"Small progress every day creates a strong journey across the Grand Line."';
-
-    try {
-      const todayMotivation = await motivationRepository.getTodayMotivation();
-      if (todayMotivation) {
-        title = '🌊 Daily Wisdom';
-        body = `"${todayMotivation.message}"`;
-      }
-    } catch (err) {
-      console.warn('[NotificationService] Smart motivation quote error:', err);
-    }
-
-    const payload: NotificationPayload = {
-      type: 'MOTIVATION',
-      target_screen: 'Motivation',
-      title,
-      body,
-      scheduled_time: timeStr,
-    };
-
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: payload as any,
-          sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour,
-          minute,
-          channelId: 'motivation',
-        },
-      });
-
-      await notificationRepository.trackScheduledNotification({
-        notification_type: 'MOTIVATION',
-        expo_notification_id: notificationId,
-        scheduled_time: timeStr,
-        title,
-        body,
-        payload_json: JSON.stringify(payload),
-        scheduled_at: new Date().toISOString(),
-      });
-
-      return notificationId;
-    } catch (err) {
-      console.error('[NotificationService] Schedule motivation reminder failed:', err);
-      return null;
-    }
-  }
-
-  /**
-   * Sends an immediate real Android test notification.
-   */
-  async sendTestNotification(): Promise<boolean> {
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') {
-      const granted = await this.requestPermission();
-      if (!granted) return false;
-    }
-
-    await this.createNotificationChannels();
-
-    const payload: NotificationPayload = {
-      type: 'TEST',
-      target_screen: 'Dashboard',
-      title: '⚓ Test notification',
-      body: 'Your learning reminder system is working properly.',
-    };
-
-    try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '⚓ Test notification',
-          body: 'Your learning reminder system is working properly on the Grand Line!',
-          data: payload as any,
-          sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: 1,
-          channelId: 'learning_reminders',
-        },
-      });
-      return true;
-    } catch (err) {
-      console.error('[NotificationService] Test notification failed:', err);
-      return false;
-    }
-  }
-
-  /**
-   * Sends an immediate local notification when a focus study session finishes.
-   */
-  async sendFocusCompletionNotification(courseName: string, minutes: number): Promise<boolean> {
-    const prefs = await notificationRepository.getPreferences();
-    if (!prefs.notifications_enabled) return false;
-
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') return false;
-
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🎯 Focus Session Complete!',
-          body: `You studied ${courseName} for ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}. Great voyage progress!`,
+          title,
+          body: decision.message,
           data: {
-            type: 'DAILY_LEARNING',
-            target_screen: 'Dashboard',
-            title: '🎯 Focus Complete',
-            body: `You studied ${courseName} for ${minutes} minutes.`,
+            type: isAlarm ? 'STUDY_ALARM' : 'TEST',
+            target_screen: decision.targetScreen,
+            title,
+            body: decision.message,
+            course_id: decision.courseId,
+            module_id: decision.moduleId,
+            topic_id: decision.topicId,
           },
-          sound: 'default',
+          sound: prefs.sound_enabled,
+          vibrate: isAlarm
+            ? [0, 500, 200, 500]
+            : (prefs.vibration_enabled ? [0, 250, 250, 250] : undefined),
+          priority: isAlarm
+            ? Notifications.AndroidNotificationPriority.MAX
+            : Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: null, // fires immediately
+      });
+
+      await notificationRepository.recordHistory({
+        notification_type: isAlarm ? 'STUDY_ALARM' : 'TEST',
+        title,
+        message: decision.message,
+        course_id: decision.courseId,
+        module_id: decision.moduleId,
+        topic_id: decision.topicId,
+        status: 'SHOWN',
+      });
+    } catch (err) {
+      console.warn('[NotificationService] sendTestNotification error:', err);
+    }
+  }
+
+  /**
+   * Goal completion notification (Section 18).
+   * Note: No XP, badges, or game points are awarded here (reserved for Part 19).
+   */
+  async scheduleCompletedGoalNotification(courseName?: string): Promise<void> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled) return;
+
+      const title = '🎉 Daily Goal Complete!';
+      const message = courseName
+        ? `Sensational effort! You completed your planned study for ${courseName} today.`
+        : 'Sensational effort! You completed all your planned study for today. Great work!';
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body: message,
+          data: {
+            type: 'GOAL_COMPLETED',
+            target_screen: 'StudyPlan',
+            title,
+            body: message,
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 250, 250, 250] : undefined,
+        },
+        trigger: null,
+      });
+
+      await notificationRepository.recordHistory({
+        notification_type: 'GOAL_COMPLETED',
+        title,
+        message,
+        status: 'SHOWN',
+      });
+    } catch (err) {
+      console.warn('[NotificationService] scheduleCompletedGoalNotification error:', err);
+    }
+  }
+
+  // =========================================================================
+  // BACKWARD COMPATIBILITY HELPERS (Parts 12 & 13)
+  // =========================================================================
+
+  async scheduleLearningReminder(timeStr: string): Promise<string | null> {
+    return this.scheduleDailyStudyReminder('daily_study_primary', timeStr);
+  }
+
+  async scheduleGoalReminder(timeStr: string): Promise<string | null> {
+    return this.scheduleEveningUnfinishedReminder('evening_unfinished', timeStr);
+  }
+
+  async scheduleStreakReminderLegacy(timeStr: string): Promise<string | null> {
+    return this.scheduleStreakReminder('streak_reminder', timeStr);
+  }
+
+  async schedulePracticeReminder(timeStr: string): Promise<string | null> {
+    return this.scheduleDailyStudyReminder('daily_study_practice', timeStr);
+  }
+
+  async scheduleMotivationNotification(timeStr: string): Promise<string | null> {
+    return this.scheduleMorningPlanReminder('morning_plan', timeStr);
+  }
+
+  async cancelNotification(type: NotificationType): Promise<void> {
+    await this.cancelScheduledItem(type.toLowerCase());
+  }
+
+  async rescheduleAllNotifications(): Promise<void> {
+    await this.rescheduleAllFromPreferences();
+  }
+
+  /**
+   * Helper for Part 13 Focus Mode timer completion notification.
+   */
+  async sendFocusCompletionNotification(courseName: string, minutes: number): Promise<void> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled) return;
+
+      const title = 'Focus Session Complete! 🎯';
+      const body = `Great work! You focused on ${courseName} for ${minutes} minutes. Keep up the momentum!`;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data: {
+            type: 'DAILY_STUDY_REMINDER',
+            target_screen: 'FocusHistory',
+            course_id: '',
+          },
+          sound: prefs.sound_enabled,
+          vibrate: prefs.vibration_enabled ? [0, 250, 250, 250] : undefined,
+        },
+        trigger: null,
+      });
+
+      await notificationRepository.recordHistory({
+        notification_type: 'DAILY_STUDY_REMINDER',
+        title,
+        message: body,
+        status: 'SHOWN',
+      });
+    } catch (err) {
+      console.warn('[NotificationService] sendFocusCompletionNotification error:', err);
+    }
+  }
+
+  async cancelAllNotifications(): Promise<void> {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await notificationRepository.clearAllScheduledNotifications();
+  }
+  async scheduleStudyReminder(params: { id: string; title: string; body: string; triggerTime: Date }): Promise<void> {
+    try {
+      const prefs = await notificationRepository.getPreferences();
+      if (!prefs.notifications_enabled) return;
+      await Notifications.scheduleNotificationAsync({
+        identifier: params.id,
+        content: {
+          title: params.title,
+          body: params.body,
+          sound: prefs.sound_enabled,
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: 1,
-          channelId: 'learning_reminders',
-        },
+          date: params.triggerTime,
+        } as any,
       });
-      return true;
     } catch (err) {
-      console.warn('[NotificationService] Focus completion notification failed:', err);
-      return false;
+      console.warn('[NotificationService] scheduleStudyReminder error:', err);
     }
-  }
-
-  /**
-   * Reschedules all enabled reminders according to persisted notification preferences.
-   * Safe to call on app startup and reboot.
-   */
-  async rescheduleAllNotifications(): Promise<void> {
-    await this.init();
-
-    const prefs = await notificationRepository.getPreferences();
-
-    // If master notifications switch is disabled, ensure all alarms are cleared
-    if (!prefs.notifications_enabled) {
-      await this.cancelAllNotifications();
-      return;
-    }
-
-    const perm = await this.getPermissionStatus();
-    if (perm !== 'granted') {
-      return;
-    }
-
-    // Reschedule each enabled reminder
-    if (prefs.learning_reminder_enabled) {
-      await this.scheduleLearningReminder(prefs.learning_reminder_time);
-    } else {
-      await this.cancelNotification('DAILY_LEARNING');
-    }
-
-    if (prefs.goal_reminder_enabled) {
-      await this.scheduleGoalReminder(prefs.goal_reminder_time);
-    } else {
-      await this.cancelNotification('DAILY_GOAL');
-    }
-
-    if (prefs.streak_reminder_enabled) {
-      await this.scheduleStreakReminder(prefs.streak_reminder_time);
-    } else {
-      await this.cancelNotification('STREAK');
-    }
-
-    if (prefs.practice_reminder_enabled) {
-      await this.schedulePracticeReminder(prefs.practice_reminder_time);
-    } else {
-      await this.cancelNotification('PRACTICE');
-    }
-
-    if (prefs.motivation_notification_enabled) {
-      await this.scheduleMotivationReminder(prefs.motivation_notification_time);
-    } else {
-      await this.cancelNotification('MOTIVATION');
-    }
-  }
-
-  /**
-   * Subscribes to notification responses (taps) and deep-links to the target screen.
-   */
-  setupNotificationResponseListener(navigate: (screen: any, params?: any) => void): () => void {
-    const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
-      try {
-        const data = response.notification.request.content.data as unknown as NotificationPayload;
-        if (!data || !data.target_screen) {
-          navigate('Dashboard');
-          return;
-        }
-
-        switch (data.target_screen) {
-          case 'ModuleDetails':
-            if (data.course_id && data.module_id) {
-              const course = await courseRepository.getById(data.course_id);
-              if (course) {
-                navigate('ModuleDetails', {
-                  courseId: data.course_id,
-                  moduleId: data.module_id,
-                });
-                return;
-              }
-            }
-            navigate('Dashboard');
-            break;
-
-          case 'DailyLearning':
-            navigate('DailyLearning');
-            break;
-
-          case 'PracticeLinks':
-            navigate('PracticeLinks');
-            break;
-
-          case 'Motivation':
-            navigate('Motivation');
-            break;
-
-          case 'Courses':
-            navigate('Courses');
-            break;
-
-          case 'Dashboard':
-          default:
-            navigate('Dashboard');
-            break;
-        }
-      } catch (err) {
-        console.warn('[NotificationService] Deep link handling error:', err);
-        navigate('Dashboard');
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
   }
 }
 

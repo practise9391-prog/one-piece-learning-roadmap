@@ -57,6 +57,12 @@ export const CourseIcon: React.FC<CourseIconProps> = ({
         return { name: 'language-html5', defaultColor: '#E34F26', bg: '#FFF7ED' };
       case 'css':
         return { name: 'language-css3', defaultColor: '#1572B6', bg: '#F0F9FF' };
+      case 'system_design':
+        return { name: 'server-network', defaultColor: '#6366F1', bg: '#EEF2FF' };
+      case 'react':
+        return { name: 'react', defaultColor: '#00D8FE', bg: '#F0FDFF' };
+      case 'algorithms':
+        return { name: 'graph-outline', defaultColor: '#10B981', bg: '#ECFDF5' };
       case 'javascript':
       case 'js':
         return { name: 'language-javascript', defaultColor: '#CA8A04', bg: '#FEFCE8' };

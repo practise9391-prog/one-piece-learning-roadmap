@@ -1,27 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { useTheme } from '../../theme/ThemeContext';
+import { useAppNavigation } from '../../navigation/NavigationContext';
 
 interface CodeBlockProps {
   code: string;
   language?: string;
   output?: string;
+  enableReveal?: boolean;
+  enableTryExample?: boolean;
+  topicTitle?: string;
+  courseId?: string;
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = ({
   code,
   language = 'python',
   output,
+  enableReveal = false,
+  enableTryExample = true,
+  topicTitle,
+  courseId,
 }) => {
+  const { navigate } = useAppNavigation();
+  const { reducedMotion } = useTheme();
   const [copied, setCopied] = useState<boolean>(false);
+  const lines = code.trim().split('\n');
+
+  // If reveal mode is on and not reduced motion, start revealing lines
+  const [revealedCount, setRevealedCount] = useState<number>(
+    enableReveal && !reducedMotion ? 1 : lines.length
+  );
+  const [isRevealing, setIsRevealing] = useState<boolean>(
+    enableReveal && !reducedMotion && lines.length > 1
+  );
+
+  useEffect(() => {
+    if (isRevealing && revealedCount < lines.length) {
+      const timer = setTimeout(() => {
+        setRevealedCount((prev) => prev + 1);
+      }, 120);
+      return () => clearTimeout(timer);
+    } else if (revealedCount >= lines.length) {
+      setIsRevealing(false);
+    }
+  }, [isRevealing, lines.length, revealedCount]);
+
+  const handleShowAll = () => {
+    setIsRevealing(false);
+    setRevealedCount(lines.length);
+  };
 
   const handleCopy = async () => {
     try {
@@ -33,8 +69,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
     }
   };
 
-  const lines = code.trim().split('\n');
-
   return (
     <View style={styles.container}>
       <View style={styles.headerBar}>
@@ -42,55 +76,81 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
           <Text style={styles.langText}>{language.toUpperCase()}</Text>
         </View>
 
-        <TouchableOpacity
-          onPress={handleCopy}
-          style={[styles.copyButton, copied && styles.copyButtonSuccess]}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={copied ? 'checkmark' : 'copy-outline'}
-            size={14}
-            color={copied ? '#10B981' : '#94A3B8'}
-          />
-          <Text style={[styles.copyText, copied && styles.copyTextSuccess]}>
-            {copied ? 'Copied!' : 'Copy'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.actionsRow}>
+          {isRevealing && (
+            <TouchableOpacity
+              onPress={handleShowAll}
+              style={styles.revealButton}
+              activeOpacity={0.7}
+              accessibilityLabel="Show all code lines"
+            >
+              <Ionicons name="eye-outline" size={13} color="#38BDF8" />
+              <Text style={styles.revealText}>Show All</Text>
+            </TouchableOpacity>
+          )}
+
+          {enableTryExample && (
+            <TouchableOpacity
+              onPress={() =>
+                navigate('CodeWorkspace', {
+                  code,
+                  language,
+                  title: topicTitle || `${language.toUpperCase()} Example`,
+                  mode: 'LEARNING',
+                  courseId,
+                })
+              }
+              style={styles.tryBtn}
+              activeOpacity={0.7}
+              accessibilityLabel="Try This Example in Code Workspace"
+            >
+              <Ionicons name="terminal-outline" size={13} color="#10B981" />
+              <Text style={styles.tryBtnText}>Try in Debugger</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            onPress={handleCopy}
+            style={[styles.copyButton, copied && styles.copyButtonSuccess]}
+            activeOpacity={0.7}
+            accessibilityLabel="Copy code to clipboard"
+          >
+            <Ionicons
+              name={copied ? 'checkmark' : 'copy-outline'}
+              size={14}
+              color={copied ? '#10B981' : '#94A3B8'}
+            />
+            <Text style={[styles.copyText, copied && styles.copyTextSuccess]}>
+              {copied ? 'Copied!' : 'Copy'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.codeContainer}>
-          <View style={styles.lineNumbers}>
-            {lines.map((_, idx) => (
-              <Text key={`line-${idx}`} style={styles.lineNumberText}>
-                {idx + 1}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.codeScroll}>
+        <View style={styles.codeContent}>
+          {lines.slice(0, revealedCount).map((line, idx) => (
+            <View key={`line-${idx}`} style={styles.lineRow}>
+              <Text style={styles.lineNumber}>{idx + 1}</Text>
+              <Text style={styles.codeLine} selectable>
+                {line}
               </Text>
-            ))}
-          </View>
-
-          <View style={styles.codeLines}>
-            {lines.map((line, idx) => (
-              <Text key={`code-${idx}`} style={styles.codeLineText}>
-                {line || ' '}
-              </Text>
-            ))}
-          </View>
+            </View>
+          ))}
         </View>
       </ScrollView>
 
-      {output ? (
-        <View style={styles.outputContainer}>
+      {output && (
+        <View style={styles.outputBox}>
           <View style={styles.outputHeader}>
-            <Ionicons name="terminal-outline" size={13} color="#94A3B8" />
-            <Text style={styles.outputHeaderText}>TERMINAL OUTPUT</Text>
+            <Ionicons name="terminal-outline" size={14} color="#64748B" />
+            <Text style={styles.outputTitle}>Output</Text>
           </View>
-          <Text style={styles.outputText}>{output}</Text>
+          <Text style={styles.outputText} selectable>
+            {output}
+          </Text>
         </View>
-      ) : null}
+      )}
     </View>
   );
 };
@@ -98,89 +158,118 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#0F172A',
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginVertical: 12,
+    borderRadius: 12,
+    marginVertical: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1E293B',
+    overflow: 'hidden',
   },
   headerBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 14,
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
     paddingVertical: 8,
+    backgroundColor: '#1E293B',
     borderBottomWidth: 1,
     borderBottomColor: '#334155',
   },
   langBadge: {
     backgroundColor: '#334155',
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   langText: {
+    color: '#38BDF8',
     fontSize: 10,
-    fontWeight: '800',
-    color: '#94A3B8',
-    letterSpacing: 0.8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  revealButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  },
+  revealText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  tryBtnText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '700',
   },
   copyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
     gap: 4,
-    backgroundColor: '#334155',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   copyButtonSuccess: {
-    backgroundColor: '#064E3B',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
   copyText: {
-    fontSize: 11,
-    fontWeight: '700',
     color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '600',
   },
   copyTextSuccess: {
     color: '#10B981',
   },
-  scrollContent: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+  codeScroll: {
+    padding: 12,
   },
-  codeContainer: {
+  codeContent: {
+    minWidth: '100%',
+  },
+  lineRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
-  lineNumbers: {
-    paddingRight: 14,
-    borderRightWidth: 1,
-    borderRightColor: '#1E293B',
-    marginRight: 14,
-    alignItems: 'flex-end',
-  },
-  lineNumberText: {
-    fontSize: 12,
-    lineHeight: 20,
+  lineNumber: {
     color: '#475569',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    width: 28,
+    textAlign: 'right',
+    marginRight: 12,
   },
-  codeLines: {
-    paddingRight: 20,
-  },
-  codeLineText: {
+  codeLine: {
+    color: '#F8FAFC',
     fontSize: 12.5,
-    lineHeight: 20,
-    color: '#E2E8F0',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: 'monospace',
+    lineHeight: 18,
   },
-  outputContainer: {
+  outputBox: {
+    backgroundColor: '#080E21',
     borderTopWidth: 1,
     borderTopColor: '#1E293B',
-    backgroundColor: '#090D16',
     padding: 10,
-    paddingHorizontal: 14,
   },
   outputHeader: {
     flexDirection: 'row',
@@ -188,16 +277,15 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 4,
   },
-  outputHeaderText: {
-    fontSize: 9,
-    fontWeight: '800',
+  outputTitle: {
     color: '#64748B',
-    letterSpacing: 0.8,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   outputText: {
-    fontSize: 12,
-    lineHeight: 18,
     color: '#34D399',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11.5,
+    fontFamily: 'monospace',
   },
 });
