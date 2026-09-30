@@ -70,7 +70,8 @@ export type RootScreen =
   | 'ApplicationDetails'
   | 'Companies'
   | 'Interviews'
-  | 'JobAnalytics';
+  | 'JobAnalytics'
+  | 'MyGoal';
 
 export interface NavigationState {
   currentScreen: RootScreen;

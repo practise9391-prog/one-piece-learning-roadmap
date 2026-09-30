@@ -330,6 +330,54 @@ export const v25_part27_react_and_algorithms_courses = {
       }
     ];
 
+    // Ensure practice_tasks, task_test_cases, and compatibility view exist
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS practice_tasks (
+        id TEXT PRIMARY KEY NOT NULL,
+        course_id TEXT NOT NULL,
+        module_id TEXT,
+        topic_id TEXT,
+        category_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        instructions TEXT,
+        task_type TEXT NOT NULL DEFAULT 'CODING',
+        difficulty TEXT NOT NULL DEFAULT 'MEDIUM',
+        language TEXT NOT NULL DEFAULT 'python',
+        starter_code TEXT NOT NULL,
+        solution TEXT NOT NULL,
+        explanation TEXT,
+        hints TEXT,
+        time_limit INTEGER DEFAULT 2,
+        memory_limit INTEGER DEFAULT 128,
+        points INTEGER NOT NULL DEFAULT 10,
+        xp INTEGER NOT NULL DEFAULT 20,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        is_bookmarked INTEGER NOT NULL DEFAULT 0,
+        user_draft TEXT,
+        status TEXT NOT NULL DEFAULT 'NOT_STARTED',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS task_test_cases (
+        id TEXT PRIMARY KEY NOT NULL,
+        task_id TEXT NOT NULL,
+        input TEXT NOT NULL,
+        expected_output TEXT NOT NULL,
+        is_hidden INTEGER NOT NULL DEFAULT 0,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        weight INTEGER NOT NULL DEFAULT 1,
+        timeout_ms INTEGER NOT NULL DEFAULT 2000,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (task_id) REFERENCES practice_tasks(id) ON DELETE CASCADE
+      );
+
+      CREATE VIEW IF NOT EXISTS practice_test_cases AS SELECT * FROM task_test_cases;
+    `);
+
     for (const task of practiceTasks) {
       await db.runAsync(
         `INSERT OR IGNORE INTO practice_tasks (
@@ -367,7 +415,7 @@ export const v25_part27_react_and_algorithms_courses = {
         const tc = task.test_cases[tcIdx];
         const tcId = `${task.id}_tc_${tcIdx + 1}`;
         await db.runAsync(
-          `INSERT OR IGNORE INTO practice_test_cases (
+          `INSERT OR IGNORE INTO task_test_cases (
             id, task_id, input, expected_output, is_hidden,
             order_index, weight, timeout_ms, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, 10, 2000, ?);`,

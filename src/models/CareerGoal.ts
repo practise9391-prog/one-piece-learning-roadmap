@@ -49,3 +49,4 @@ export interface CareerGoalSummary {
   solvedProblemsCount: number;
   completedTopicsCount: number;
 }
+
