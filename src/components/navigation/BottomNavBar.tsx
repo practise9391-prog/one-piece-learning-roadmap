@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppNavigation } from '../../navigation/NavigationContext';
@@ -52,64 +52,144 @@ const TABS: TabItem[] = [
   },
 ];
 
+const ANDROID_BOTTOM_INSET = Platform.OS === 'android' ? 32 : 12;
+
 export const BottomNavBar: React.FC = () => {
   const { currentScreen, navigate, openDrawer } = useAppNavigation();
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+
+  if (isCollapsed) {
+    return (
+      <View style={styles.floatingContainer} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.expandFloatingBtn}
+          onPress={() => setIsCollapsed(false)}
+          activeOpacity={0.8}
+          accessibilityLabel="Show Navigation Bar"
+        >
+          <Ionicons name="chevron-up" size={16} color={Colors.secondary} />
+          <Text style={styles.expandFloatingText}>Menu</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {TABS.map((tab) => {
-        const isActive = tab.screen === currentScreen;
+      {/* Quick Hide Button on top-right edge */}
+      <TouchableOpacity
+        style={styles.hideBarBtn}
+        onPress={() => setIsCollapsed(true)}
+        activeOpacity={0.7}
+        accessibilityLabel="Hide Navigation Bar"
+      >
+        <Ionicons name="chevron-down" size={14} color="#94A3B8" />
+      </TouchableOpacity>
 
-        const handlePress = () => {
-          if (tab.isAction) {
-            openDrawer();
-          } else if (tab.screen) {
-            navigate(tab.screen);
-          }
-        };
+      <View style={styles.tabsRow}>
+        {TABS.map((tab) => {
+          const isActive = tab.screen === currentScreen;
 
-        return (
-          <TouchableOpacity
-            key={tab.id}
-            style={styles.tabButton}
-            onPress={handlePress}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-              <Ionicons
-                name={isActive ? tab.iconActive : tab.iconInactive}
-                size={22}
-                color={isActive ? Colors.secondary : '#94A3B8'}
-              />
-            </View>
-            <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-              {tab.label}
-            </Text>
-            {isActive && <View style={styles.activeDot} />}
-          </TouchableOpacity>
-        );
-      })}
+          const handlePress = () => {
+            if (tab.isAction) {
+              openDrawer();
+            } else if (tab.screen) {
+              navigate(tab.screen);
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={styles.tabButton}
+              onPress={handlePress}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
+                <Ionicons
+                  name={isActive ? tab.iconActive : tab.iconInactive}
+                  size={22}
+                  color={isActive ? Colors.secondary : '#94A3B8'}
+                />
+              </View>
+              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                {tab.label}
+              </Text>
+              {isActive && <View style={styles.activeDot} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    height: Platform.OS === 'android' ? 62 : 68,
+    height: (Platform.OS === 'android' ? 58 : 54) + ANDROID_BOTTOM_INSET,
     backgroundColor: '#0A1128',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingBottom: ANDROID_BOTTOM_INSET,
+    elevation: 8,
+    position: 'relative',
+  },
+  tabsRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    paddingBottom: Platform.OS === 'android' ? 4 : 10,
-    elevation: 8,
+    paddingTop: 4,
+  },
+  hideBarBtn: {
+    position: 'absolute',
+    top: -12,
+    right: 16,
+    width: 32,
+    height: 18,
+    backgroundColor: '#0A1128',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  floatingContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'android' ? 44 : 20,
+    right: 16,
+    zIndex: 999,
+  },
+  expandFloatingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#0A1128',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 179, 0, 0.45)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 10,
+  },
+  expandFloatingText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   tabButton: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   iconWrap: {
     alignItems: 'center',
