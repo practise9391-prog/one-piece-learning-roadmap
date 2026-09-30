@@ -11,6 +11,11 @@ interface TopAppBarProps {
   onBackPress?: () => void;
 }
 
+const ANDROID_TOP_INSET =
+  Platform.OS === 'android'
+    ? (StatusBar.currentHeight ? Math.max(StatusBar.currentHeight, 28) + 12 : 44)
+    : 0;
+
 export const TopAppBar: React.FC<TopAppBarProps> = ({
   title = 'ONE PIECE LEARNING',
   showBackButton = false,
@@ -20,58 +25,61 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Left: Back or Hamburger Icon */}
-      {showBackButton ? (
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={onBackPress || goBack}
-          activeOpacity={0.7}
-          accessibilityLabel="Go Back"
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={openDrawer}
-          activeOpacity={0.7}
-          accessibilityLabel="Open Navigation Menu"
-        >
-          <Ionicons name="menu" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
+      {ANDROID_TOP_INSET > 0 && <View style={{ height: ANDROID_TOP_INSET }} />}
+      <View style={styles.actionRow}>
+        {/* Left: Back or Hamburger Icon */}
+        {showBackButton ? (
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onBackPress || goBack}
+            activeOpacity={0.7}
+            accessibilityLabel="Go Back"
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={openDrawer}
+            activeOpacity={0.7}
+            accessibilityLabel="Open Navigation Menu"
+          >
+            <Ionicons name="menu" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
 
-      {/* Center: App Title with Nautical Crest */}
-      <View style={styles.centerContainer}>
-        <View style={styles.crestRow}>
-          <View style={styles.miniEmblem}>
-            <Ionicons name="compass-outline" size={16} color={Colors.secondary} />
+        {/* Center: App Title with Nautical Crest */}
+        <View style={styles.centerContainer}>
+          <View style={styles.crestRow}>
+            <View style={styles.miniEmblem}>
+              <Ionicons name="compass-outline" size={16} color={Colors.secondary} />
+            </View>
+            <Text style={styles.titleText} numberOfLines={1}>
+              {title}
+            </Text>
           </View>
-          <Text style={styles.titleText} numberOfLines={1}>
-            {title}
-          </Text>
         </View>
-      </View>
 
-      {/* Right: Search and Settings Icons */}
-      <View style={styles.rightActionsRow}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigate('TopicSearch')}
-          activeOpacity={0.7}
-          accessibilityLabel="Search Topics"
-        >
-          <Ionicons name="search" size={20} color="#CBD5E1" />
-        </TouchableOpacity>
+        {/* Right: Search and Settings Icons */}
+        <View style={styles.rightActionsRow}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigate('TopicSearch')}
+            activeOpacity={0.7}
+            accessibilityLabel="Search Topics"
+          >
+            <Ionicons name="search" size={20} color="#CBD5E1" />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigate('Settings')}
-          activeOpacity={0.7}
-          accessibilityLabel="Open Settings"
-        >
-          <Ionicons name="settings-outline" size={20} color="#CBD5E1" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigate('Settings')}
+            activeOpacity={0.7}
+            accessibilityLabel="Open Settings"
+          >
+            <Ionicons name="settings-outline" size={20} color="#CBD5E1" />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -79,14 +87,16 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: Platform.OS === 'android' ? 58 : 54,
     backgroundColor: Colors.oceanDepths,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  actionRow: {
+    height: Platform.OS === 'android' ? 58 : 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   rightActionsRow: {
     flexDirection: 'row',

@@ -13,6 +13,7 @@ import { CourseWelcomeView } from '../components/welcome';
 import { useAppNavigation } from '../navigation/NavigationContext';
 import { roadmapService } from '../services/RoadmapService';
 import { courseRepository } from '../repositories/CourseRepository';
+import { settingsRepository } from '../repositories/SettingsRepository';
 import { Course } from '../models/Course';
 import { Module } from '../models/Module';
 import { Colors } from '../theme/colors';
@@ -23,21 +24,35 @@ export const CourseDetailsScreen: React.FC = () => {
 
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
+  const [unlockAllModules, setUnlockAllModules] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [isStartingJourney, setIsStartingJourney] = useState<boolean>(false);
 
   const loadCourseData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await roadmapService.getCourseWithModules(courseId);
+      const [data, unlockSetting] = await Promise.all([
+        roadmapService.getCourseWithModules(courseId),
+        settingsRepository.getSetting('roadmap_unlock_all_modules', 'true').catch(() => 'true'),
+      ]);
       setCourse(data.course);
       setModules(data.modules);
+      setUnlockAllModules(unlockSetting !== 'false');
     } catch (err) {
       console.error('Failed to load course details from SQLite:', err);
     } finally {
       setLoading(false);
     }
   }, [courseId]);
+
+  const handleToggleUnlockAll = async (newVal: boolean) => {
+    setUnlockAllModules(newVal);
+    try {
+      await settingsRepository.setSetting('roadmap_unlock_all_modules', newVal ? 'true' : 'false');
+    } catch (err) {
+      console.warn('Failed to save roadmap_unlock_all_modules:', err);
+    }
+  };
 
   useEffect(() => {
     if (currentScreen === 'CourseRoadmap') {
@@ -145,6 +160,8 @@ export const CourseDetailsScreen: React.FC = () => {
       <CourseRoadmap
         course={course}
         modules={modules}
+        unlockAllModules={unlockAllModules}
+        onToggleUnlockAll={handleToggleUnlockAll}
         onSelectModule={handleSelectModule}
         onViewCelebration={handleViewCelebration}
       />

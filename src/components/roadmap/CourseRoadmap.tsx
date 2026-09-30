@@ -18,6 +18,8 @@ import { Colors } from '../../theme/colors';
 interface CourseRoadmapProps {
   course: Course;
   modules: Module[];
+  unlockAllModules?: boolean;
+  onToggleUnlockAll?: (val: boolean) => void;
   onSelectModule: (module: Module) => void;
   onViewCelebration?: () => void;
 }
@@ -25,6 +27,8 @@ interface CourseRoadmapProps {
 export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
   course,
   modules,
+  unlockAllModules = true,
+  onToggleUnlockAll,
   onSelectModule,
   onViewCelebration,
 }) => {
@@ -60,7 +64,7 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
       if (isSelfCompleted) {
         states.push('completed');
         completed++;
-      } else if (isPrevCompleted) {
+      } else if (unlockAllModules || isPrevCompleted) {
         states.push('available');
         if (firstAvailableIndex === -1) {
           firstAvailableIndex = i;
@@ -75,7 +79,7 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
       completedCount: completed,
       activeIndex: firstAvailableIndex === -1 ? modules.length - 1 : firstAvailableIndex,
     };
-  }, [modules]);
+  }, [modules, unlockAllModules]);
 
   const activeModule = modules[activeIndex] || null;
 
@@ -148,6 +152,8 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
         completedModulesCount={completedCount}
         totalModulesCount={modules.length}
         activeModule={activeModule}
+        unlockAllModules={unlockAllModules}
+        onToggleUnlockAll={onToggleUnlockAll}
         onContinueJourney={onSelectModule}
         onViewCelebration={onViewCelebration}
       />
@@ -239,6 +245,7 @@ export const CourseRoadmap: React.FC<CourseRoadmapProps> = ({
                 previousModuleTitle={prevTitle}
                 themeColor={themeMeta.primary}
                 isFinalModule={isFinal}
+                unlockAllModules={unlockAllModules}
                 onPress={onSelectModule}
                 onPressLocked={handlePressLocked}
               />

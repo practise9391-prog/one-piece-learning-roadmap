@@ -21,6 +21,7 @@ export interface RoadmapNodeProps {
   previousModuleTitle?: string;
   themeColor?: string;
   isFinalModule?: boolean;
+  unlockAllModules?: boolean;
   onPress: (module: Module) => void;
   onPressLocked?: (module: Module, prevTitle?: string) => void;
 }
@@ -32,6 +33,7 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
   previousModuleTitle,
   themeColor = Colors.primary,
   isFinalModule = false,
+  unlockAllModules = false,
   onPress,
   onPressLocked,
 }) => {
@@ -87,7 +89,7 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
   }, [state, isFinalModule, pulseAnim, glowAnim]);
 
   const handlePress = () => {
-    if (state === 'locked') {
+    if (state === 'locked' && !unlockAllModules) {
       onPressLocked?.(module, previousModuleTitle);
     } else {
       onPress(module);

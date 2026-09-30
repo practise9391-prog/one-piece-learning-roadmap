@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../components/Header';
@@ -26,6 +27,7 @@ import { useAppNavigation } from '../navigation/NavigationContext';
 import { roadmapService } from '../services/RoadmapService';
 import { progressService } from '../services/ProgressService';
 import { topicContentService } from '../services/TopicContentService';
+import { settingsRepository } from '../repositories/SettingsRepository';
 import { topicRepository } from '../repositories/TopicRepository';
 import { moduleRepository } from '../repositories/ModuleRepository';
 import { activityRepository } from '../repositories/ActivityRepository';
@@ -59,6 +61,7 @@ export const ModuleDetailsScreen: React.FC = () => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopicIndex, setSelectedTopicIndex] = useState<number>(0);
   const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [unlockAllModules, setUnlockAllModules] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [resumedFromPrevious, setResumedFromPrevious] = useState<boolean>(false);
@@ -78,7 +81,6 @@ export const ModuleDetailsScreen: React.FC = () => {
     xpEarned: 10,
   });
 
-
   const [moduleStudySecs, setModuleStudySecs] = useState<number>(0);
   const [topicStudySecs, setTopicStudySecs] = useState<number>(0);
 
@@ -88,8 +90,14 @@ export const ModuleDetailsScreen: React.FC = () => {
     if (!moduleId) return;
     try {
       setLoading(true);
-      const data = await roadmapService.getCourseWithModules(courseId);
+      const [data, unlockSetting] = await Promise.all([
+        roadmapService.getCourseWithModules(courseId),
+        settingsRepository.getSetting('roadmap_unlock_all_modules', 'true').catch(() => 'true'),
+      ]);
       setCourse(data.course);
+
+      const isUnlockedMode = unlockSetting !== 'false';
+      setUnlockAllModules(isUnlockedMode);
 
       const allMods = data.modules;
       const currentIndex = allMods.findIndex((m) => m.id === moduleId);
@@ -105,7 +113,7 @@ export const ModuleDetailsScreen: React.FC = () => {
         setNextModule(nextMod);
         setIsFinalModule(currentIndex === allMods.length - 1);
 
-        const locked = prevMod !== null && !prevMod.is_completed;
+        const locked = !isUnlockedMode && prevMod !== null && !prevMod.is_completed;
         setIsLocked(locked);
       }
 
@@ -298,6 +306,20 @@ export const ModuleDetailsScreen: React.FC = () => {
     }
   };
 
+  const handleToggleUnlockMode = async (val: boolean) => {
+    setUnlockAllModules(val);
+    try {
+      await settingsRepository.setSetting('roadmap_unlock_all_modules', val ? 'true' : 'false');
+    } catch (e) {
+      console.warn('Failed to save unlock setting:', e);
+    }
+    if (val) {
+      setIsLocked(false);
+    } else if (previousModule && !previousModule.is_completed) {
+      setIsLocked(true);
+    }
+  };
+
   if (loading && !module) {
     return (
       <View style={styles.container}>
@@ -378,6 +400,40 @@ export const ModuleDetailsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Module Lock / Unlock Progression Slide Bar */}
+        <View style={styles.unlockModeBar}>
+          <View style={styles.unlockModeBarLeft}>
+            <View
+              style={[
+                styles.unlockModeIconBadge,
+                { backgroundColor: unlockAllModules ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)' },
+              ]}
+            >
+              <Ionicons
+                name={unlockAllModules ? 'lock-open' : 'lock-closed'}
+                size={16}
+                color={unlockAllModules ? Colors.success : '#EF4444'}
+              />
+            </View>
+            <View style={styles.unlockModeBarTextCol}>
+              <Text style={styles.unlockModeBarTitle}>
+                {unlockAllModules ? 'All Modules Unlocked' : 'Sequential Mode (Locked)'}
+              </Text>
+              <Text style={styles.unlockModeBarSub}>
+                {unlockAllModules
+                  ? 'Free exploration — slide to lock sequentially'
+                  : 'Slide to unlock all modules freely'}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={unlockAllModules}
+            onValueChange={handleToggleUnlockMode}
+            trackColor={{ false: '#475569', true: '#22C55E' }}
+            thumbColor={unlockAllModules ? '#FFFFFF' : '#CBD5E1'}
+          />
+        </View>
+
         {isLocked && (
           <View style={styles.lockedBanner}>
             <Ionicons name="lock-closed" size={24} color="#DC2626" />
@@ -1052,5 +1108,50 @@ const styles = StyleSheet.create({
     color: '#0284C7',
     fontSize: 11,
     fontWeight: '700',
+  },
+  unlockModeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  unlockModeBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  unlockModeIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  unlockModeBarTextCol: {
+    flex: 1,
+  },
+  unlockModeBarTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  unlockModeBarSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 1,
   },
 });

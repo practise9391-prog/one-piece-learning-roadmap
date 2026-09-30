@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 
@@ -57,7 +57,10 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.oceanDepths,
-    paddingTop: 48,
+    paddingTop:
+      Platform.OS === 'android'
+        ? (StatusBar.currentHeight ? Math.max(StatusBar.currentHeight, 28) + 16 : 52)
+        : 48,
     paddingBottom: 0,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,

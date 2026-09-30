@@ -9,6 +9,7 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppNavigation } from '../../navigation/NavigationContext';
@@ -217,7 +218,10 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 18,
-    paddingTop: Platform.OS === 'android' ? 24 : 36,
+    paddingTop:
+      Platform.OS === 'android'
+        ? (StatusBar.currentHeight ? Math.max(StatusBar.currentHeight, 28) + 12 : 44)
+        : 36,
     backgroundColor: Colors.oceanDepths,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',

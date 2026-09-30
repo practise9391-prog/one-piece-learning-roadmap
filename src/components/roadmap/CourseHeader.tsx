@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Course } from '../../models/Course';
 import { Module } from '../../models/Module';
@@ -11,6 +11,8 @@ interface CourseHeaderProps {
   completedModulesCount: number;
   totalModulesCount: number;
   activeModule?: Module | null;
+  unlockAllModules?: boolean;
+  onToggleUnlockAll?: (val: boolean) => void;
   onContinueJourney?: (module: Module) => void;
   onViewCelebration?: () => void;
 }
@@ -20,6 +22,8 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({
   completedModulesCount,
   totalModulesCount,
   activeModule,
+  unlockAllModules = true,
+  onToggleUnlockAll,
   onContinueJourney,
   onViewCelebration,
 }) => {
@@ -86,6 +90,40 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({
             </Text>
           )}
         </View>
+      </View>
+
+      {/* MODULE PROGRESSION MODE: SLIDE BAR TO LOCK / UNLOCK ALL MODULES */}
+      <View style={styles.unlockCard}>
+        <View style={styles.unlockCardLeft}>
+          <View
+            style={[
+              styles.unlockIconBadge,
+              { backgroundColor: unlockAllModules ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)' },
+            ]}
+          >
+            <Ionicons
+              name={unlockAllModules ? 'lock-open' : 'lock-closed'}
+              size={18}
+              color={unlockAllModules ? Colors.success : '#EF4444'}
+            />
+          </View>
+          <View style={styles.unlockTextCol}>
+            <Text style={styles.unlockTitle}>
+              {unlockAllModules ? 'All Modules Unlocked' : 'Sequential Mode (Locked)'}
+            </Text>
+            <Text style={styles.unlockSubtitle}>
+              {unlockAllModules
+                ? 'Free exploration — tap and study any module'
+                : 'Slide to unlock all modules freely'}
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={unlockAllModules}
+          onValueChange={onToggleUnlockAll}
+          trackColor={{ false: '#475569', true: '#22C55E' }}
+          thumbColor={unlockAllModules ? '#FFFFFF' : '#CBD5E1'}
+        />
       </View>
 
       {/* CONTINUE YOUR JOURNEY / VIEW COMPLETION ACTION BANNER */}
@@ -350,5 +388,50 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  unlockCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  unlockCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  unlockIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  unlockTextCol: {
+    flex: 1,
+  },
+  unlockTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  unlockSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 1,
   },
 });
