@@ -45,6 +45,7 @@ import { AISpeakingScreen } from '../screens/ai/AISpeakingScreen';
 import { AIInterviewScreen } from '../screens/ai/AIInterviewScreen';
 import { AIDataSettingsScreen } from '../screens/settings/AIDataSettingsScreen';
 import { InteractiveTopicScreen } from '../screens/learning/InteractiveTopicScreen';
+import { MyGoalScreen } from '../screens/goal/MyGoalScreen';
 
 export const AppNavigator: React.FC = () => {
   const { currentScreen } = useAppNavigation();
@@ -182,6 +183,9 @@ export const AppNavigator: React.FC = () => {
 
     case 'AIDataSettings':
       return <AIDataSettingsScreen />;
+
+    case 'MyGoal':
+      return <MyGoalScreen />;
 
     case 'Home':
     case 'Dashboard':
